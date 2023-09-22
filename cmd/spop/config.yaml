@@ -1,0 +1,16 @@
+secret: JMal0XJRROOMsMdPqggG2tR56CTkpgN3r47GgUN/WSQ=
+
+default:
+  - duration: 24h
+    type: none
+  - duration: 30m
+    type: pow
+
+frontend:
+  my_fancy_frontend:
+    - duration: 30s
+      type: none
+    - duration: 20s
+      type: pow
+    - duration: 10s
+      type: pow

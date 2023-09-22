@@ -1,0 +1,185 @@
+@import "reset.scss";
+
+.container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: center;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+
+    > .description {
+        width: 40%;
+        text-align: right;
+        margin-right: 5em;
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #404040;
+        line-height: 1.5;
+
+        > .heading {
+            font-size: 3em;
+            font-weight: bold;
+        }
+    }
+    > .break {
+        flex-basis: 100%;
+        height: 0;
+    }
+}
+
+.footer {
+    bottom: 1em;
+    position: absolute;
+}
+
+code {
+    padding: 16px;
+    overflow: auto;
+    line-height: 1.45;
+    background-color: #f7f7f7;
+    border-radius: 3px;
+    max-width: 80vw;
+    display: block;
+}
+
+.logo {
+    width: 15%;
+
+    .logo-line {
+        fill: none;
+        stroke: #010101;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 18px;
+    }
+}
+
+.captcha-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    margin: .5em 0 .5em 0;
+}
+
+.captcha {
+    margin-left: auto;
+    font-size: 120%;
+}
+
+$circleSize: 3em;
+
+.circle-loader {
+    visibility: hidden;
+    margin-left: 1em;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-left-color: #000;
+    animation: loader-spin 1.2s infinite linear;
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    border-radius: 50%;
+    width: $circleSize;
+    height: $circleSize;
+
+    &.load-complete {
+        -webkit-animation: none;
+        animation: none;
+        border-color: #000;
+        transition: border 500ms ease-out;
+    }
+}
+
+.checkmark {
+    display: none;
+
+    &.draw::after {
+        animation-duration: 500ms;
+        animation-timing-function: ease;
+        animation-name: checkmark;
+        transform: scaleX(-1) rotate(135deg);
+    }
+
+    &::after {
+        content: "";
+        opacity: 1;
+        height: 2em;
+        width: 1em;
+        transform-origin: left top;
+        border-right: 3px solid #000;
+        border-top: 3px solid #000;
+        left: 0.5em;
+        top: 1.75em;
+        position: absolute;
+    }
+}
+
+
+.cross {
+    display: none;
+    transform: rotate(45deg);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+
+    &::after, &::before {
+        content: '';
+        position: absolute;
+        width: 2px;
+        height: 2em;
+        background: #000;
+        top: 50%;
+        left: 50%;
+        margin-top: -1em;
+        margin-left: -1.5px;
+    }
+
+    &::after {
+        transform: rotate(90deg);
+    }
+
+    &.draw::after, &.draw::before {
+        animation-duration: 500ms;
+        animation-timing-function: ease;
+        animation-name: drawCross;
+    }
+}
+
+@keyframes loader-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes checkmark {
+    0% {
+        height: 0;
+        width: 0;
+        opacity: 1;
+    }
+    50% {
+
+        height: 0;
+        width: 1em;
+        opacity: 1;
+    }
+    100% {
+        height: 2em;
+        width: 1em;
+        opacity: 1;
+    }
+}
+
+@keyframes drawCross {
+    0% {
+        scale: 0;
+    }
+    100% {
+        scale: 1;
+    }
+}
