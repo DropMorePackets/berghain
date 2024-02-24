@@ -23,6 +23,9 @@ browsers that really know how to dance!
 ## Example setup with HAProxy
 To start berghain locally you can follow these easy steps:
 
+For Debian / Ubuntu: apt install npm
+
+0. Run `npm install` inside `web/`
 1. Run `npm run build` inside `web/`
 2. Run `haproxy -f examples/haproxy/haproxy.cfg`
 3. Run `go run ./cmd/spop/. -config cmd/spop/config.yaml`
