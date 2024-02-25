@@ -19,5 +19,8 @@
     "vite": "^4.5.3",
     "vite-plugin-html": "^3.2.0",
     "vite-plugin-singlefile": "^0.13.5"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.4.0"
   }
 }
