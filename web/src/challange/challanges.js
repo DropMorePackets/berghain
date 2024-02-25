@@ -2,18 +2,8 @@
  * Collection of challenges.
  */
 
-/**
- * Calculate native hash.
- *
- * @param {string} data
- * @param {AlgorithmIdentifier} method
- * @return {Promise<string>}
- */
-async function nativeHash(data, method){
-    const hashBuffer = await crypto.subtle.digest(method, new TextEncoder().encode(data));
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
+import { sha256 } from '@noble/hashes/sha256'
+import {bytesToHex } from '@noble/hashes/utils';
 
 /**
  * Challenge POW.
@@ -26,7 +16,7 @@ async function challengePOW(challenge){
     let i;
     // eslint-disable-next-line no-constant-condition
     for (i = 0; true; i++){
-        hash = await nativeHash(challenge.r + i.toString(), "sha-256");
+        hash = bytesToHex(sha256(new TextEncoder().encode(challenge.r + i.toString())));
         if (hash.startsWith("0000")){
             break;
         }
