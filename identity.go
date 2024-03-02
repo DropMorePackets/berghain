@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/netip"
 	"sync"
 
@@ -39,6 +40,40 @@ type RequestIdentifier struct {
 	Level   uint8
 }
 
+func (ri RequestIdentifier) WriteTo(h io.Writer) (int64, error) {
+	raw := AcquireCookieBuffer()
+	defer ReleaseCookieBuffer(raw)
+
+	var written int64
+	// Write Host to the hash
+	n, err := h.Write(ri.Host)
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
+
+	// Write SrcAddr first to the buffer and then to the hash.
+	// netip.AsSlice does an allocation we want to avoid.
+	addrSlice := raw.WriteBytes()[:0] // reset length to zero
+	addrSlice = ri.SrcAddr.AppendTo(addrSlice)
+	n, err = h.Write(addrSlice)
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
+	raw.Reset()
+
+	// Write Level to the buffer and to the hash
+	raw.WriteNBytes(1)[0] = ri.Level
+	n, err = h.Write(raw.ReadBytes())
+	written += int64(n)
+	if err != nil {
+		return written, err
+	}
+
+	return written, nil
+}
+
 func (ri RequestIdentifier) ToCookie(b *Berghain, enc *buffer.SliceBuffer) error {
 	raw := AcquireCookieBuffer()
 	defer ReleaseCookieBuffer(raw)
@@ -53,7 +88,7 @@ func (ri RequestIdentifier) ToCookie(b *Berghain, enc *buffer.SliceBuffer) error
 
 	// Write SrcAddr first to the buffer and then to the hash.
 	// netip.AsSlice does an allocation we want to avoid.
-	addrSlice := raw.WriteBytes()[:0] // reset capacity to zero
+	addrSlice := raw.WriteBytes()[:0] // reset length to zero
 	addrSlice = ri.SrcAddr.AppendTo(addrSlice)
 	if _, err := h.Write(addrSlice); err != nil {
 		return err
@@ -97,15 +132,15 @@ func (ri RequestIdentifier) ToCookie(b *Berghain, enc *buffer.SliceBuffer) error
 }
 
 var (
-	ErrInvalidCookieLength = fmt.Errorf("invalid cookie length")
-	ErrLevelTooLow         = fmt.Errorf("cookie level too low")
-	ErrCookieExpired       = fmt.Errorf("cookie expired")
-	ErrCookieInvalidHMAC   = fmt.Errorf("invalid hmac")
+	ErrInvalidLength = fmt.Errorf("invalid length")
+	ErrLevelTooLow   = fmt.Errorf("cookie level too low")
+	ErrExpired       = fmt.Errorf("expired")
+	ErrInvalidHMAC   = fmt.Errorf("invalid hmac")
 )
 
 func (b *Berghain) IsValidCookie(ri RequestIdentifier, cookie []byte) error {
 	if len(cookie) != encodedCookieSize {
-		return ErrInvalidCookieLength
+		return ErrInvalidLength
 	}
 
 	dec := AcquireCookieBuffer()
@@ -155,7 +190,7 @@ func (b *Berghain) IsValidCookie(ri RequestIdentifier, cookie []byte) error {
 
 	// Untrusted input is decoded and compared!
 	if uint64(tc.Now().Unix()) > binary.LittleEndian.Uint64(dec.ReadBytes()) {
-		return ErrCookieExpired
+		return ErrExpired
 	}
 
 	if _, err := h.Write(dec.ReadBytes()); err != nil {
@@ -170,7 +205,7 @@ func (b *Berghain) IsValidCookie(ri RequestIdentifier, cookie []byte) error {
 	}
 
 	if !bytes.Equal(h.Sum(nil), dec.ReadBytes()) {
-		return ErrCookieInvalidHMAC
+		return ErrInvalidHMAC
 	}
 
 	return nil

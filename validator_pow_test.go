@@ -94,6 +94,46 @@ func Test_validatorPOW(t *testing.T) {
 	}
 }
 
+func Test_validatorPOW_unique(t *testing.T) {
+	bh := NewBerghain(generateSecret(t))
+
+	bh.Levels = []*LevelConfig{
+		{
+			Duration: time.Minute,
+			Type:     ValidationTypePOW,
+		},
+	}
+
+	req, resp := AcquireValidatorRequest(), AcquireValidatorResponse()
+	req.Identifier = &RequestIdentifier{
+		SrcAddr: netip.MustParseAddr("1.2.3.4"),
+		Host:    []byte("example.com"),
+		Level:   1,
+	}
+	req.Method = http.MethodGet
+
+	if err := validatorPOW(bh, req, resp); err != nil {
+		t.Errorf("validator failed: %v", err)
+	}
+
+	if resp.Body.Len() != len(validatorPOWChallengeTemplate) {
+		t.Errorf("invalid challenge response length: %d != %d", len(validatorPOWChallengeTemplate), resp.Body.Len())
+	}
+
+	solution, err := solvePOW(t, resp.Body.ReadBytes())
+	if err != nil {
+		t.Errorf("while solving pow: %v", err)
+	}
+
+	// Do another request but this time as POST and with the solution.
+	req.Method = http.MethodPost
+	req.Body = solution
+	req.Identifier.SrcAddr = netip.MustParseAddr("1.2.3.5")
+	if err := validatorPOW(bh, req, resp); err == nil {
+		t.Errorf("validator should have failed")
+	}
+}
+
 func Benchmark_validatorPOW_GET(b *testing.B) {
 	bh := NewBerghain(generateSecret(b))
 
