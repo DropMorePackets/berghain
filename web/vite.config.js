@@ -13,4 +13,11 @@ export default defineConfig({
         cssCodeSplit: false,
         assetsInlineLimit: 100000000,
     },
+    css: {
+        preprocessorOptions: {
+            scss: {
+                api: 'modern-compiler'
+            }
+        }
+    }
 });
