@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -13,6 +14,7 @@ import (
 
 type Config struct {
 	Secret   Secret                    `yaml:"secret"`
+	Listen   string                    `yaml:"listen"`
 	Default  FrontendConfig            `yaml:"default"`
 	Frontend map[string]FrontendConfig `yaml:"frontend"`
 }
@@ -76,4 +78,24 @@ func loadConfig() Config {
 	}
 
 	return c
+}
+
+// ParseListener parses the listen string and returns the network type and address
+func ParseListener(listen string) (network, address string) {
+
+	// old default
+	if listen == "" {
+		return "unix", "./spop.sock"
+	}
+
+	if strings.HasPrefix(listen, "unix://") {
+		return "unix", strings.TrimPrefix(listen, "unix://")
+	}
+
+	if strings.HasPrefix(listen, "tcp://") {
+		return "tcp", strings.TrimPrefix(listen, "tcp://")
+	}
+
+	// old default behaviour
+	return "unix", listen
 }

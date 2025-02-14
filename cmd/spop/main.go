@@ -81,11 +81,14 @@ func runBerghain(wg *sync.WaitGroup, ctx context.Context) error {
 		b.c[fName] = &frontend{bh: config.AsBerghain(cfg.Secret)}
 	}
 
-	listen, err := net.Listen("unix", "./spop.sock")
+	network, address := ParseListener(cfg.Listen)
+	listen, err := net.Listen(network, address)
 	if err != nil {
 		return err
 	}
 	defer listen.Close()
+
+	log.Printf("Listening on %s://%s", network, address)
 
 	a := &spop.Agent{
 		Handler:     &b,
