@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  berghain-haproxy:
+    build: .
+    ports:
+      - "8080:8080" # Expose the backend service
+    volumes:
+      - ./examples/haproxy/haproxy.cfg:/app/haproxy.cfg
+      - ./examples/haproxy/berghain.cfg:/app/examples/haproxy/berghain.cfg
+      - ./cmd/spop/config.yaml:/app/config.yaml
+    command: sh -c "haproxy -f haproxy.cfg & ./berghain -config config.yaml"
