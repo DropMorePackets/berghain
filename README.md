@@ -30,5 +30,24 @@ For Debian / Ubuntu: apt install npm
 2. Run `haproxy -f examples/haproxy/haproxy.cfg`
 3. Run `go run ./cmd/spop/. -config cmd/spop/config.yaml`
 
+## Running with Docker
+
+To run the project using Docker, follow these steps:
+
+1. Build the Docker images:
+   ```sh
+   docker-compose build
+   ```
+
+2. Start the services:
+   ```sh
+   docker-compose up
+   ```
+
+3. Access the application:
+   - Test App: [http://localhost:8080](http://localhost:8080)
+
+Make sure to have Docker and Docker Compose installed on your system before running these commands.
+
 ## Attributions
 Thanks to [@NullDev](https://github.com/NullDev) and [@arellak](https://github.com/arellak), as they did most of the frontend work.
