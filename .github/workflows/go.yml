@@ -51,12 +51,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.24'
 
       - name: setup environment
         run: |
           sudo apt-get install -y software-properties-common
-          sudo add-apt-repository -y ppa:vbernat/haproxy-2.8
+          sudo add-apt-repository -y ppa:vbernat/haproxy-3.0
           sudo apt-get update
           sudo apt-get install -y haproxy
           haproxy -vv
