@@ -15,7 +15,9 @@ func (tc *timeCache) Now() realTime.Time {
 	return *tc.p.Load()
 }
 
-var tc = func() (tc timeCache) {
+var tc = func() *timeCache {
+	var tc timeCache
+
 	refresh := func() {
 		n := realTime.Now()
 		tc.p.Store(&n)
@@ -30,5 +32,5 @@ var tc = func() (tc timeCache) {
 
 	refresh()
 	go refresher()
-	return
+	return &tc
 }()
