@@ -132,6 +132,7 @@ func (ri RequestIdentifier) ToCookie(b *Berghain, enc *buffer.SliceBuffer) error
 }
 
 var (
+	ErrEmpty         = fmt.Errorf("empty")
 	ErrInvalidLength = fmt.Errorf("invalid length")
 	ErrLevelTooLow   = fmt.Errorf("cookie level too low")
 	ErrExpired       = fmt.Errorf("expired")
@@ -139,7 +140,14 @@ var (
 )
 
 func (b *Berghain) IsValidCookie(ri RequestIdentifier, cookie []byte) error {
-	if len(cookie) != encodedCookieSize {
+	lc := len(cookie)
+
+	if lc == 0 {
+		// cookie either not set or set with empty value
+		return ErrEmpty
+	}
+
+	if lc != encodedCookieSize {
 		return ErrInvalidLength
 	}
 
