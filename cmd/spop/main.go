@@ -11,25 +11,47 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"log/slog"
 	"sync"
 
 	"github.com/dropmorepackets/haproxy-go/pkg/encoding"
 	"github.com/dropmorepackets/haproxy-go/spop"
 )
 
-var configPath string
-var debug bool
+var (
+	configPath string
+	debug      bool
+)
+
+func Fatal(message string, args ...any) {
+	slog.Error(message, args...)
+	os.Exit(1)
+}
 
 func main() {
+	var (
+		logLevelArg string
+		pprofArg    bool
+	)
+
 	flag.StringVar(&configPath, "config", "config.yaml", "Config file to load")
-	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
+	flag.StringVar(&logLevelArg, "loglevel", "info", "Logging level")
+	flag.BoolVar(&pprofArg, "pprof", false, "Enable pprof listener")
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	// In debug mode start a http server to serve the default pprof handlers.
-	if debug {
+	var logLevel slog.Level
+	if err := logLevel.UnmarshalText([]byte(logLevelArg)); err != nil {
+		Fatal("invalid log level, cannot proceed")
+	}
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+
+	// Optionally start a http server to serve the default pprof handlers.
+	if pprofArg {
 		go http.ListenAndServe(":9001", nil)
+		slog.Info("Listening for pprof requests", "type", "tcp", "address", "*:9001")
 	}
 
 	c := make(chan os.Signal, 1)
@@ -50,7 +72,7 @@ func main() {
 	case <-c:
 		cancelFunc()
 	case err := <-ec:
-		log.Printf("closing due to fatal error: %v", err)
+		Fatal("closing due to fatal error", "error", err)
 		return
 	}
 
@@ -68,7 +90,7 @@ func runBerghain(wg *sync.WaitGroup, ctx context.Context) error {
 
 	cfg := loadConfig()
 	if len(cfg.Secret) != 32 {
-		log.Fatalf("provided secret has invalid length: 32 != %d", len(cfg.Secret))
+		Fatal("provided secret has invalid length", "have", len(cfg.Secret), "need", 32)
 	}
 
 	b := instance{
@@ -88,7 +110,7 @@ func runBerghain(wg *sync.WaitGroup, ctx context.Context) error {
 	}
 	defer listen.Close()
 
-	log.Printf("Listening on %s://%s", network, address)
+	slog.Info("Listening for SPOP requests", "type", network, "address", address)
 
 	a := &spop.Agent{
 		Handler:     &b,

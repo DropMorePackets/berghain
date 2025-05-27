@@ -4,7 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"hash"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -46,11 +46,11 @@ func (b *Berghain) releaseHMAC(h hash.Hash) {
 func (b *Berghain) LevelConfig(level uint8) *LevelConfig {
 
 	if level == 0 {
-		log.Println("level cannot be zero. correcting to 1")
+		slog.Warn("level cannot be zero, correcting", "old", 0, "new", 1)
 	}
 
 	if level > uint8(len(b.Levels)) {
-		log.Printf("level too high. correcting to %d", len(b.Levels))
+		slog.Warn("level too high, correcting", "old", level, "new", len(b.Levels))
 	}
 
 	level = min(uint8(len(b.Levels)), max(1, level))
