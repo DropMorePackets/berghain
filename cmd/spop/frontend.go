@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -83,8 +83,8 @@ func (f *frontend) HandleSPOEValidate(_ context.Context, w *encoding.ActionWrite
 
 	readExpectedKVEntry(m, k, "cookie")
 	err := f.bh.IsValidCookie(ri, k.ValueBytes())
-	if err != nil && debug {
-		log.Printf("IsValidCookie: %v", err)
+	if err != nil {
+		slog.Debug("cookie not valid", "error", err)
 	}
 	isValidCookie := err == nil
 

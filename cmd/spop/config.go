@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -56,7 +55,7 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 	case "pow":
 		lc.Type = berghain.ValidationTypePOW
 	default:
-		log.Fatalf("unknown validation type: %s", c.Type)
+		Fatal("unknown validation type", "type", c.Type)
 	}
 
 	return &lc
@@ -64,17 +63,17 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 
 func loadConfig() Config {
 	if configPath == "" {
-		log.Fatal("missing config path")
+		Fatal("missing config path", "path", configPath)
 	}
 
 	f, err := os.Open(configPath)
 	if err != nil {
-		log.Fatalf("failed opening config: %v", err)
+		Fatal("failed opening config", "path", configPath, "error", err)
 	}
 
 	var c Config
 	if err := yaml.NewDecoder(f).Decode(&c); err != nil {
-		log.Fatalf("failed reading config: %v", err)
+		Fatal("failed reading config", "path", configPath, "error", err)
 	}
 
 	return c
