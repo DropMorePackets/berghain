@@ -1,6 +1,7 @@
 package berghain
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -69,7 +70,7 @@ func (v ValidationType) RunValidator(b *Berghain, req *ValidatorRequest, resp *V
 	case ValidationTypePOW:
 		return validatorPOW(b, req, resp)
 	default:
-		panic("unknown validation type")
+		return errors.New("unknown validation type")
 	}
 }
 

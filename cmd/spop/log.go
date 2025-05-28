@@ -15,6 +15,7 @@ func (lh *logHandler) Handle(ctx context.Context, r slog.Record) error {
 		"handler",
 		"host",
 		"src",
+		"validator",
 	} {
 		if handler, ok := ctx.Value(k).(string); ok {
 			r.AddAttrs(slog.String(k, handler))

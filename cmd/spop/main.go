@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"log/slog"
 	"net"
@@ -131,7 +130,7 @@ func (i *instance) Frontend(b []byte) *frontend {
 	if f == nil {
 		f = i.c[defaultFrontend]
 		if f == nil {
-			panic("failed fetching default frontend")
+			Fatal("failed fetching default frontend")
 		}
 	}
 
@@ -147,14 +146,15 @@ func (i *instance) HandleSPOE(ctx context.Context, w *encoding.ActionWriter, m *
 	// read frontend
 	if !m.KV.Next(k) {
 		if err := m.KV.Error(); err != nil {
-			panic(fmt.Sprintf("error while reading KV: %v", err))
+			slog.ErrorContext(ctx, "error while reading KV", "error", err)
+			return
 		}
 
-		panic("failed reading fronted argument")
+		slog.ErrorContext(ctx, "failed reading fronted argument")
 	}
 
 	if !k.NameEquals("frontend") {
-		panic("Invalid SPOP argument order: expected frontend")
+		slog.ErrorContext(ctx, "invalid SPOP argument order", "error", "expected frontend")
 	}
 
 	f := i.Frontend(k.ValueBytes())
