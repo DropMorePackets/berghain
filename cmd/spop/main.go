@@ -1,17 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"log/slog"
 	"sync"
 
 	"github.com/dropmorepackets/haproxy-go/pkg/encoding"
@@ -22,11 +21,6 @@ var (
 	configPath string
 	debug      bool
 )
-
-func Fatal(message string, args ...any) {
-	slog.Error(message, args...)
-	os.Exit(1)
-}
 
 func main() {
 	var (
@@ -46,7 +40,11 @@ func main() {
 		Fatal("invalid log level, cannot proceed")
 	}
 
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+	slog.SetDefault(slog.New(&logHandler{
+		TextHandler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: logLevel,
+		}),
+	}))
 
 	// Optionally start a http server to serve the default pprof handlers.
 	if pprofArg {
@@ -110,7 +108,7 @@ func runBerghain(wg *sync.WaitGroup, ctx context.Context) error {
 	}
 	defer listen.Close()
 
-	slog.Info("Listening for SPOP requests", "type", network, "address", address)
+	slog.InfoContext(ctx, "Listening for SPOP requests", "type", network, "address", address)
 
 	a := &spop.Agent{
 		Handler:     &b,
@@ -161,10 +159,14 @@ func (i *instance) HandleSPOE(ctx context.Context, w *encoding.ActionWriter, m *
 
 	f := i.Frontend(k.ValueBytes())
 
-	switch {
-	case bytes.Equal(m.NameBytes(), []byte(SPOEMessageNameValidate)):
+	h := string(m.NameBytes())
+
+	ctx = context.WithValue(ctx, "handler", h)
+
+	switch h {
+	case SPOEMessageNameValidate:
 		f.HandleSPOEValidate(ctx, w, m)
-	case bytes.Equal(m.NameBytes(), []byte(SPOEMessageNameChallenge)):
+	case SPOEMessageNameChallenge:
 		f.HandleSPOEChallenge(ctx, w, m)
 	}
 }

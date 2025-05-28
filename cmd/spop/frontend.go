@@ -50,7 +50,7 @@ func releaseHostBuf(b *buffer.SliceBuffer) {
 	hostBufPool.Put(b)
 }
 
-func (f *frontend) HandleSPOEValidate(_ context.Context, w *encoding.ActionWriter, m *encoding.Message) {
+func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWriter, m *encoding.Message) {
 	k := encoding.AcquireKVEntry()
 	defer encoding.ReleaseKVEntry(k)
 
@@ -58,6 +58,7 @@ func (f *frontend) HandleSPOEValidate(_ context.Context, w *encoding.ActionWrite
 
 	readExpectedKVEntry(m, k, "level")
 	ri.Level = uint8(k.ValueInt())
+	ctx = context.WithValue(ctx, "level", int(ri.Level))
 	if ri.Level == 0 {
 		// berghain is disabled, just exit early and ignore everything...
 		return
@@ -69,10 +70,13 @@ func (f *frontend) HandleSPOEValidate(_ context.Context, w *encoding.ActionWrite
 	if !ok {
 		panic("cant read netip.Address from message")
 	}
+	ctx = context.WithValue(ctx, "src", addr.String())
 	ri.SrcAddr = addr
 
 	readExpectedKVEntry(m, k, "host")
-	if len(k.ValueBytes()) > hostBufferLength {
+	host := k.ValueBytes()
+	ctx = context.WithValue(ctx, "host", string(host))
+	if len(host) > hostBufferLength {
 		panic("host length too big")
 	}
 
@@ -84,7 +88,7 @@ func (f *frontend) HandleSPOEValidate(_ context.Context, w *encoding.ActionWrite
 	readExpectedKVEntry(m, k, "cookie")
 	err := f.bh.IsValidCookie(ri, k.ValueBytes())
 	if err != nil {
-		slog.Debug("cookie not valid", "error", err)
+		slog.DebugContext(ctx, "cookie not valid", "error", err)
 	}
 	isValidCookie := err == nil
 
