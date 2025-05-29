@@ -18,7 +18,6 @@ import (
 
 var (
 	configPath string
-	debug      bool
 )
 
 func main() {
