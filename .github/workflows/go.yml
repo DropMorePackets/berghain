@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
@@ -18,7 +18,7 @@ jobs:
           install-go: false
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
@@ -31,7 +31,7 @@ jobs:
         run: go build -v ./...
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
@@ -44,7 +44,7 @@ jobs:
         run: go test -v ./...
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
@@ -56,7 +56,7 @@ jobs:
       - name: setup environment
         run: |
           sudo apt-get install -y software-properties-common
-          sudo add-apt-repository -y ppa:vbernat/haproxy-3.0
+          sudo add-apt-repository -y ppa:vbernat/haproxy-3.2
           sudo apt-get update
           sudo apt-get install -y haproxy
           haproxy -vv
