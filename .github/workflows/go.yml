@@ -56,7 +56,7 @@ jobs:
       - name: setup environment
         run: |
           sudo apt-get install -y software-properties-common
-          sudo add-apt-repository -y ppa:vbernat/haproxy-3.2
+          sudo add-apt-repository -y ppa:vbernat/haproxy-3.0
           sudo apt-get update
           sudo apt-get install -y haproxy
           haproxy -vv
