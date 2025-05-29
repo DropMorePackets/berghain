@@ -30,6 +30,8 @@ For Debian / Ubuntu: apt install npm
 2. Run `haproxy -f examples/haproxy/haproxy.cfg`
 3. Run `go run ./cmd/spop/. -config cmd/spop/config.yaml`
 
+For production use, generate a random `secret` to place in the Berghain configuration file using `openssl rand -base64 32`.
+
 ## Running with Docker
 
 To run the project using Docker, follow these steps:
