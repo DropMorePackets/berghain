@@ -11,7 +11,7 @@ import (
 	"github.com/dropmorepackets/haproxy-go/pkg/buffer"
 	"github.com/dropmorepackets/haproxy-go/pkg/encoding"
 
-	"github.com/fionera/berghain"
+	"github.com/DropMorePackets/berghain"
 )
 
 type frontend struct {
