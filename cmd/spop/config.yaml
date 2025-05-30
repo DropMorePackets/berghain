@@ -10,7 +10,9 @@ frontend:
   my_fancy_frontend:
     - duration: 30s
       type: none
+      countdown: 9  # default is 3 seconds, maximum is 9
     - duration: 20s
       type: pow
     - duration: 10s
       type: pow
+      countdown: 0

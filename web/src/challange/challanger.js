@@ -23,12 +23,14 @@ async function getChallenge(){
 export async function doChallenge(){
     loader.start();
 
+    let countdown = 3;
     let result;
     try {
         loader.setChallengeInfo("Fetching challenge...");
 
         const challenge = await getChallenge();
         const {t} = challenge;
+        countdown = challenge.c;
 
         const [name, solver] = getChallengeSolver(t);
 
@@ -42,7 +44,7 @@ export async function doChallenge(){
         result = e.toString();
     }
 
-    loader.stop(!!result);
+    loader.stop(countdown, !!result);
     if (result){
         loader.showError(result);
     }

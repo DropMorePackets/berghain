@@ -40,14 +40,26 @@ func (fc FrontendConfig) AsBerghain(s []byte) *berghain.Berghain {
 }
 
 type LevelConfig struct {
-	Duration time.Duration `yaml:"duration"`
-	Type     string        `yaml:"type"`
+	Countdown *int          `yaml:"countdown"`
+	Duration  time.Duration `yaml:"duration"`
+	Type      string        `yaml:"type"`
 }
 
 func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 	var lc berghain.LevelConfig
 
 	lc.Duration = c.Duration
+
+	if c.Countdown == nil {
+		// no level specific countdown was provided
+		lc.Countdown = 3
+	} else if *c.Countdown > 9 {
+		// template string currently only allows one digit
+		//   and JavaScript does not allow zero padding of integers in JSON
+		Fatal("countdown too high, cannot proceed", "countdown_have", *c.Countdown, "countdown_max", 9)
+	} else {
+		lc.Countdown = *c.Countdown
+	}
 
 	switch c.Type {
 	case "none":

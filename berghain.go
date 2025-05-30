@@ -10,8 +10,9 @@ import (
 )
 
 type LevelConfig struct {
-	Duration time.Duration
-	Type     ValidationType
+	Countdown int
+	Duration  time.Duration
+	Type      ValidationType
 }
 
 type Berghain struct {
