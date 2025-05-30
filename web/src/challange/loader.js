@@ -25,7 +25,7 @@ export function setChallengeInfo(text){
  *
  * @param {boolean} [failed=false]
  */
-export function stop(failed = false){
+export function stop(countdown, failed = false){
     const loader = /** @type {HTMLDivElement} */ (document.querySelector(".circle-loader"));
     const checkmark = /** @type {HTMLDivElement} */ (document.querySelector(".checkmark"));
     const cross = /** @type {HTMLDivElement} */ (document.querySelector(".cross"));
@@ -40,14 +40,14 @@ export function stop(failed = false){
         return;
     }
 
-    let countdown = 4;
     const interval = setInterval(() => {
-        countdown--;
-
         setChallengeInfo(`Reloading in ${countdown}...`);
         if (countdown === 0){
             clearInterval(interval);
             window.location.reload();
+        }
+        else if (countdown > 0) {
+            countdown--;
         }
     }, 1000);
 }

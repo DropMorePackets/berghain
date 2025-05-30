@@ -33,7 +33,7 @@ type powValidator struct {
 const (
 	validatorPOWRandom            = "0000000000000000"
 	validatorPOWHash              = "0000000000000000000000000000000000000000000000000000000000000000"
-	validatorPOWChallengeTemplate = `{"t": 1, "r": "` + validatorPOWRandom + `", "s": "` + validatorPOWHash + `"}`
+	validatorPOWChallengeTemplate = `{"c": 0, "t": 1, "r": "` + validatorPOWRandom + `", "s": "` + validatorPOWHash + `"}`
 	validatorPOWMinSolutionLength = len(validatorPOWRandom) + 1 + len(validatorPOWHash) + 1 + 1
 )
 
@@ -50,15 +50,19 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	h := b.acquireHMAC()
 	defer b.releaseHMAC(h)
 
+	lc := b.LevelConfig(req.Identifier.Level)
+
 	copy(resp.Body.WriteBytes(), validatorPOWChallengeTemplate)
-	resp.Body.AdvanceW(15)
+	resp.Body.AdvanceW(6)
+	copy(resp.Body.WriteNBytes(1), fmt.Sprintf("%d", lc.Countdown))
+	resp.Body.AdvanceW(16)
 	timestampArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
 	resp.Body.AdvanceW(9)
 	hexArea := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
 	resp.Body.AdvanceW(2)
 
 	// we use the response body temporarily as a buffer
-	expireAt := tc.Now().Add(b.LevelConfig(req.Identifier.Level).Duration)
+	expireAt := tc.Now().Add(lc.Duration)
 	timestampBuf := resp.Body.WriteNBytes(8)
 	resp.Body.AdvanceW(-8) // this should be illegal
 
