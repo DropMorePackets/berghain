@@ -1,4 +1,4 @@
-module github.com/fionera/berghain
+module github.com/DropMorePackets/berghain
 
 go 1.21
 

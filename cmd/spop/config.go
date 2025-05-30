@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/fionera/berghain"
+	"github.com/DropMorePackets/berghain"
 )
 
 type Config struct {
