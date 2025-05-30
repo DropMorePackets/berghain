@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 
 	"github.com/DropMorePackets/berghain"
 )
@@ -20,8 +20,12 @@ type Config struct {
 
 type Secret []byte
 
-func (s *Secret) UnmarshalYAML(node *yaml.Node) error {
-	ba, err := base64.StdEncoding.DecodeString(node.Value)
+func init() {
+	yaml.RegisterCustomUnmarshaler((*Secret).UnmarshalYAML)
+}
+
+func (s *Secret) UnmarshalYAML(b []byte) error {
+	ba, err := base64.StdEncoding.DecodeString(string(b))
 	if err != nil {
 		return err
 	}
