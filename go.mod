@@ -1,8 +1,10 @@
 module github.com/DropMorePackets/berghain
 
-go 1.21
+go 1.21.0
+
+toolchain go1.23.2
 
 require (
 	github.com/dropmorepackets/haproxy-go v0.0.6
-	gopkg.in/yaml.v3 v3.0.1
+	github.com/goccy/go-yaml v1.18.0
 )
