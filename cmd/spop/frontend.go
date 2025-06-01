@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 
 	"github.com/dropmorepackets/haproxy-go/pkg/buffer"
@@ -55,6 +56,17 @@ func releaseHostBuf(b *buffer.SliceBuffer) {
 	hostBufPool.Put(b)
 }
 
+func getTrustedDomain(host []byte, td []string) []byte {
+	h := string(host)
+	for _, d := range td {
+		if strings.HasSuffix(h, d) {
+			return []byte(d)
+		}
+	}
+
+	return nil
+}
+
 func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWriter, m *encoding.Message) {
 	k := encoding.AcquireKVEntry()
 	defer encoding.ReleaseKVEntry(k)
@@ -93,9 +105,15 @@ func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWri
 		return
 	}
 
+	td := getTrustedDomain(host, f.bh.TrustedDomains)
+	if td != nil {
+		host = td
+	}
+
 	hostBuf := acquireHostBuf()
 	defer releaseHostBuf(hostBuf)
-	copy(hostBuf.WriteNBytes(len(k.ValueBytes())), k.ValueBytes())
+
+	copy(hostBuf.WriteNBytes(len(host)), host)
 	ri.Host = hostBuf.ReadBytes()
 
 	if err := readExpectedKVEntry(ctx, m, k, "cookie"); err != nil {
@@ -141,13 +159,22 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {
 		return
 	}
-	if len(k.ValueBytes()) > hostBufferLength {
+	host := k.ValueBytes()
+	if len(host) > hostBufferLength {
 		slog.ErrorContext(ctx, "host length too big")
 	}
 
+	td := getTrustedDomain(host, f.bh.TrustedDomains)
+	if td != nil {
+		host = td
+	}
+
+	_ = w.SetString(encoding.VarScopeTransaction, "domain", string(host))
+
 	hostBuf := acquireHostBuf()
 	defer releaseHostBuf(hostBuf)
-	copy(hostBuf.WriteNBytes(len(k.ValueBytes())), k.ValueBytes())
+
+	copy(hostBuf.WriteNBytes(len(host)), host)
 	ri.Host = hostBuf.ReadBytes()
 
 	req := berghain.AcquireValidatorRequest()

@@ -16,7 +16,8 @@ type LevelConfig struct {
 }
 
 type Berghain struct {
-	Levels []*LevelConfig
+	Levels         []*LevelConfig
+	TrustedDomains []string
 
 	secret []byte
 	hmac   sync.Pool
