@@ -1,18 +1,24 @@
 secret: JMal0XJRROOMsMdPqggG2tR56CTkpgN3r47GgUN/WSQ=
 
 default:
-  - duration: 24h
-    type: none
-  - duration: 30m
-    type: pow
+  levels:
+    - duration: 24h
+      type: none
+    - duration: 30m
+      type: pow
 
 frontend:
   my_fancy_frontend:
-    - duration: 30s
-      type: none
-      countdown: 9  # default is 3 seconds, maximum is 9
-    - duration: 20s
-      type: pow
-    - duration: 10s
-      type: pow
-      countdown: 0
+    # normally, the exact host is stored and examined during cookie validation
+    # to allow a domain including all of its subdomains to share a validated session, list it here
+    trusted_domains:
+      - foo.example.com
+    levels:
+      - duration: 30s
+        type: none
+        countdown: 9  # default is 3 seconds, maximum is 9
+      - duration: 20s
+        type: pow
+      - duration: 10s
+        type: pow
+        countdown: 0

@@ -33,13 +33,20 @@ func (s *Secret) UnmarshalYAML(b []byte) error {
 	return nil
 }
 
-type FrontendConfig []LevelConfig
+type FrontendConfig struct {
+	Levels         []LevelConfig `yaml:"levels"`
+	TrustedDomains []string      `yaml:"trusted_domains"`
+}
 
 func (fc FrontendConfig) AsBerghain(s []byte) *berghain.Berghain {
 	b := berghain.NewBerghain(s)
-	for _, c := range fc {
+
+	for _, c := range fc.Levels {
 		b.Levels = append(b.Levels, c.AsLevelConfig())
 	}
+
+	b.TrustedDomains = fc.TrustedDomains
+
 	return b
 }
 
