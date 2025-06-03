@@ -33,9 +33,21 @@ type powValidator struct {
 const (
 	validatorPOWRandom            = "0000000000000000"
 	validatorPOWHash              = "0000000000000000000000000000000000000000000000000000000000000000"
-	validatorPOWChallengeTemplate = `{"c": 0, "t": 1, "r": "` + validatorPOWRandom + `", "s": "` + validatorPOWHash + `"}`
-	validatorPOWMinSolutionLength = len(validatorPOWRandom) + 1 + len(validatorPOWHash) + 1 + 1
+	validatorPOWMinSolutionLength = len(validatorPOWRandom + "-" + validatorPOWHash + "-0")
 )
+
+var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
+	Countdown int    `json:"c"`
+	Type      int    `json:"t"`
+	Random    string `json:"r"`
+	Hash      string `json:"s"`
+}{
+	// Only strings have to be set, as the default is zero for ints.
+	// We do set the Type here because it is static anyway...
+	Type:   1,
+	Random: "0000000000000000",
+	Hash:   "0000000000000000000000000000000000000000000000000000000000000000",
+})
 
 // This prevents invalid template strings by validatoring them on start
 var _ = func() bool {
@@ -53,13 +65,16 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	lc := b.LevelConfig(req.Identifier.Level)
 
 	copy(resp.Body.WriteBytes(), validatorPOWChallengeTemplate)
-	resp.Body.AdvanceW(6)
-	copy(resp.Body.WriteNBytes(1), fmt.Sprintf("%d", lc.Countdown))
-	resp.Body.AdvanceW(16)
+
+	resp.Body.AdvanceW(len(`{"c":`))
+	// the following conversion is faster than sprintf but also way uglier, I am sorry.
+	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
+	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
+	resp.Body.AdvanceW(len(`,"t":1,"r":"`))
 	timestampArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
-	resp.Body.AdvanceW(9)
+	resp.Body.AdvanceW(len(`","s":"`))
 	hexArea := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
-	resp.Body.AdvanceW(2)
+	resp.Body.AdvanceW(len(`"}`))
 
 	// we use the response body temporarily as a buffer
 	expireAt := tc.Now().Add(lc.Duration)
@@ -79,8 +94,7 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 }
 
 func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
-	// req.Body should look like this:
-	// NCUEKLGC-5d2702c936458bf9b962617673f0825ee3b51a84a42fc9f591d8c67516442a2f-61764
+	// req.Body should be at least validatorPOWMinSolutionLength
 	if len(req.Body) <= validatorPOWMinSolutionLength {
 		// invalid solution data
 		return ErrInvalidLength
