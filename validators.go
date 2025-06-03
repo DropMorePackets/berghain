@@ -1,6 +1,7 @@
 package berghain
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -75,3 +76,11 @@ func (v ValidationType) RunValidator(b *Berghain, req *ValidatorRequest, resp *V
 }
 
 var errInvalidMethod = fmt.Errorf("invalid method")
+
+func mustJSONEncodeString(v interface{}) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
