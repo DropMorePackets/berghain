@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -65,6 +66,14 @@ func getTrustedDomain(host []byte, td []string) []byte {
 	}
 
 	return nil
+}
+
+func getDomainAttr(host []byte) string {
+	if bytes.Contains(host, []byte(".")) {
+		return "domain=" + string(host) + ";" 
+	} else {
+		return ""
+	}
 }
 
 func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWriter, m *encoding.Message) {
@@ -169,7 +178,7 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 		host = td
 	}
 
-	_ = w.SetString(encoding.VarScopeTransaction, "domain", string(host))
+	_ = w.SetString(encoding.VarScopeTransaction, "domain", getDomainAttr(host))
 
 	hostBuf := acquireHostBuf()
 	defer releaseHostBuf(hostBuf)
