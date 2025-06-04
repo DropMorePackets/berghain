@@ -22,10 +22,20 @@ async function challengePOW(challenge){
         }
     }
 
-    await fetch("/cdn-cgi/challenge-platform/challenge", {
-        method: "POST",
-        body: challenge.r + "-" + challenge.s + "-" + i.toString(),
-    });
+    try {
+        const response = await fetch("/cdn-cgi/challenge-platform/challenge", {
+            body: challenge.r + "-" + challenge.s + "-" + i.toString(),
+            headers: {
+                "Content-Type": "text/plain",
+            },
+            method: "POST",
+        });
+        if (!response.ok) {
+            throw new Error("Challenge submission failed");
+        };
+    } catch (error) {
+        console.error(error.message);
+    }
 }
 
 /**
