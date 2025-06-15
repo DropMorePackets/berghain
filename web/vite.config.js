@@ -3,13 +3,6 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 import { createHtmlPlugin } from "vite-plugin-html";
 
 export default defineConfig({
-    css: {
-        preprocessorOptions: {
-            scss: {
-                api: "modern-compiler",
-            },
-        },
-    },
     plugins: [
         viteSingleFile(),
         createHtmlPlugin({
