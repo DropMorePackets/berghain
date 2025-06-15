@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "watch": "vite build --watch",
+    "dev": "vite --mode default",
+    "build": "vite build --mode default",
+    "watch": "vite build --mode default --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview"
