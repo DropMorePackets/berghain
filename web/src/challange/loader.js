@@ -46,7 +46,8 @@ export function stop(countdown, failed = false){
             clearInterval(interval);
             window.location.reload();
         }
-        else if (countdown > 0) {
+        else if (countdown > 0){
+            // eslint-disable-next-line no-param-reassign
             countdown--;
         }
     }, 1000);

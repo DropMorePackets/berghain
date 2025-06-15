@@ -30,10 +30,11 @@ async function challengePOW(challenge){
             },
             method: "POST",
         });
-        if (!response.ok) {
+        if (!response.ok){
             throw new Error("Challenge submission failed");
-        };
-    } catch (error) {
+        }
+    }
+    catch (error){
         console.error(error.message);
     }
 }
