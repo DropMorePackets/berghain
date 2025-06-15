@@ -23,6 +23,7 @@ export function setChallengeInfo(text){
 /**
  * Stop the countdown.
  *
+ * @param countdown
  * @param {boolean} [failed=false]
  */
 export function stop(countdown, failed = false){

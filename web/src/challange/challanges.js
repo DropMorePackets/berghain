@@ -2,8 +2,18 @@
  * Collection of challenges.
  */
 
-import { sha256 } from "@noble/hashes/sha256";
-import {bytesToHex } from "@noble/hashes/utils";
+import {sha256} from "@noble/hashes/sha256";
+import {bytesToHex} from "@noble/hashes/utils";
+
+async function doHash(data){
+    const input = new TextEncoder().encode(data);
+
+    if (import.meta.env.VITE_NATIVE_CRYPTO === "true"){
+        const hashBuffer = await crypto.subtle.digest("sha-256", input);
+        return bytesToHex(new Uint8Array(hashBuffer));
+    }
+    return bytesToHex(sha256(input));
+}
 
 /**
  * Challenge POW.
@@ -14,9 +24,10 @@ import {bytesToHex } from "@noble/hashes/utils";
 async function challengePOW(challenge){
     let hash;
     let i;
+
     // eslint-disable-next-line no-constant-condition
     for (i = 0; true; i++){
-        hash = bytesToHex(sha256(new TextEncoder().encode(challenge.r + i.toString())));
+        hash = await doHash(challenge.r + i.toString());
         if (hash.startsWith("0000")){
             break;
         }
