@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --mode default",
-    "build": "vite build --mode default",
+    "build": "vite build --mode default; vite build --mode native-crypto",
     "watch": "vite build --mode default --watch",
+    "build:default": "vite build --mode default",
+    "build:native-crypto": "vite build --mode native-crypto",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview"
