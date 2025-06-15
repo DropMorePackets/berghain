@@ -1,0 +1,70 @@
+name: JS
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up NodeJS
+        uses: actions/setup-node@v4
+
+      - uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          install-go: false
+
+      - name: Restore cached dependencies
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: ./web/node_modules
+          key: npm-${{ hashFiles('./src/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: |
+          cd web
+          npm ci - ignore-scripts
+
+      - name: Lint
+        run: |
+          cd web
+          npm run lint
+
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up NodeJS
+        uses: actions/setup-node@v4
+
+      - uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          install-go: false
+
+      - name: Restore cached dependencies
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: ./web/node_modules
+          key: npm-${{ hashFiles('./src/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: |
+          cd web
+          npm ci - ignore-scripts
+
+      - name: Build
+        run: |
+          cd web
+          npm run build
