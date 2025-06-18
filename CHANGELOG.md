@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/DropMorePackets/berghain/compare/v0.1.1...v0.2.0) (2025-06-18)
+
+
+### Features
+
+* **web:** add native-crypto build target ([35d28f1](https://github.com/DropMorePackets/berghain/commit/35d28f1f64131d9e719d3c6368daed15303b2c54))
+* **web:** Use env files for different entrypoints ([ebabecb](https://github.com/DropMorePackets/berghain/commit/ebabecb6def2b6858b88a7b5178abed0defef3e8))
+
 ## [0.1.1](https://github.com/DropMorePackets/berghain/compare/v0.1.0...v0.1.1) (2025-06-06)
 
 
