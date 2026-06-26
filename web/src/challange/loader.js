@@ -50,6 +50,11 @@ export function stop(countdown, failed = false){
     setChallengeInfo("Challenge succeeded.");
     container.classList.add("alert-success");
 
+    if (countdown === 0){
+        setChallengeInfo("Reloading ...");
+        window.location.reload();
+    }
+
     const interval = setInterval(() => {
         setChallengeInfo(`Reloading in ${countdown}...`);
         if (countdown === 0){
