@@ -111,18 +111,26 @@ the agent free of any per-client state:
 
 ### IP reputation & network feeds
 
-The map files under [`examples/haproxy/maps/`](examples/haproxy/maps/) classify source addresses
-(banlist, reputation score, ASN → action, VPN/Tor exit ranges, the blocked Cloudflare ranges). They are
-empty by default and refreshed out-of-band by the `feedupdater` tool, which fetches public feeds
-(Cloudflare ranges, the Tor bulk exit list) and rewrites the maps atomically:
+HAProxy classifies source addresses two ways, so the `feedupdater` tool has two outputs:
+
+- **Individual-IP reputation** (Tor exit nodes, banlists, ...) is pushed **live into HAProxy
+  stick-tables over the peers protocol** — no map files, no reloads. `feedupdater` runs as a peer that
+  HAProxy connects to; entries appear in `st_reputation_v4`/`st_reputation_v6` with a `gpt0` tag
+  (`1` = block, `>=2` = minimum challenge level) that the ACLs consult.
+- **CIDR / range feeds** (Cloudflare ranges, ASN and VPN ranges) stay in map/ACL files under
+  [`examples/haproxy/maps/`](examples/haproxy/maps/), because stick-tables key on exact IPs and cannot
+  do longest-prefix (CIDR) matching. `feedupdater` rewrites those atomically.
 
 ```sh
-go run ./cmd/feedupdater -maps-dir examples/haproxy/maps            # run once
-go run ./cmd/feedupdater -maps-dir examples/haproxy/maps -interval 6h  # or on a schedule
+# Serve live reputation over peers + refresh CIDR files every 6h:
+go run ./cmd/feedupdater -peer-listen 127.0.0.1:10001 -maps-dir examples/haproxy/maps -interval 6h
+# Add a static banlist of individual IPs (blocked):
+go run ./cmd/feedupdater -peer-listen 127.0.0.1:10001 -banlist /etc/berghain/bans.txt
 ```
 
-Run it from cron, a systemd timer, or a sidecar. A running HAProxy loads maps at startup, so apply
-refreshed files with a reload or push them through the Runtime API admin socket.
+Run HAProxy with `-L haproxy_local` so it identifies its `peer` entry (see the `peers berghain` section
+in [`examples/haproxy/haproxy.cfg`](examples/haproxy/haproxy.cfg)). The example `docker-compose.yml`
+wires this up. Run `feedupdater` from cron / a systemd timer / a sidecar.
 
 ### CrowdSec (optional)
 

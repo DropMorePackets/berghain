@@ -1,12 +1,13 @@
-// Command feedupdater refreshes the HAProxy map/ACL files that Berghain uses
-// for IP reputation and network classification (Cloudflare ranges, Tor exit
-// nodes, ...). It fetches public feeds and writes each map atomically.
+// Command feedupdater refreshes the IP reputation data Berghain uses.
 //
-// Berghain itself stays stateless: this tool runs out-of-band (cron / systemd
-// timer / sidecar) and only produces flat files that HAProxy consults. A
-// running HAProxy loads maps at startup, so apply refreshed files with a
-// reload, or push them into the running process via the Runtime API admin
-// socket (see examples/haproxy/haproxy.cfg).
+// It has two outputs, because HAProxy classifies addresses two different ways:
+//
+//   - CIDR / range feeds (Cloudflare ranges, ...) are written to HAProxy map /
+//     ACL files, because stick-tables cannot do longest-prefix matching.
+//   - Individual-IP feeds (Tor exit nodes, banlists, ...) are served to HAProxy
+//     over the peers protocol and pushed into stick-tables live, with no reload.
+//
+// Berghain itself stays stateless; this tool runs out-of-band.
 package main
 
 import (
@@ -15,53 +16,52 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/DropMorePackets/berghain/internal/peerserver"
 )
 
-// source describes one feed: where to fetch it and how to turn each fetched
-// line into an output line (returning "" skips the line).
-type source struct {
+// Reputation actions, encoded as the gpt0 tag value in the stick-tables.
+const (
+	actionNone      uint32 = 0 // no entry / cleared
+	actionBlock     uint32 = 1 // silent-drop
+	actionChallenge uint32 = 3 // raise to the highest challenge level
+)
+
+// cidrSource is a feed of CIDRs written verbatim to an ACL/map file.
+type cidrSource struct {
 	name    string
 	urls    []string
 	outFile string
-	parse   func(line string) string
 }
 
-var sources = []source{
+var cidrSources = []cidrSource{
 	{
 		name:    "cloudflare",
 		urls:    []string{"https://www.cloudflare.com/ips-v4", "https://www.cloudflare.com/ips-v6"},
 		outFile: "cloudflare-ips.lst",
-		parse:   cidrOnly,
 	},
+}
+
+// ipSource is a feed of individual IPs served over the peers protocol.
+type ipSource struct {
+	name   string
+	urls   []string
+	action uint32
+}
+
+var ipSources = []ipSource{
 	{
-		name:    "tor_exit",
-		urls:    []string{"https://check.torproject.org/torbulkexitlist"},
-		outFile: "tor_exit.map",
-		parse:   ipToMapEntry,
+		name:   "tor_exit",
+		urls:   []string{"https://check.torproject.org/torbulkexitlist"},
+		action: actionChallenge,
 	},
-}
-
-// cidrOnly keeps non-comment, non-empty lines verbatim (they are already CIDRs).
-func cidrOnly(line string) string {
-	line = strings.TrimSpace(line)
-	if line == "" || strings.HasPrefix(line, "#") {
-		return ""
-	}
-	return line
-}
-
-// ipToMapEntry turns a bare IP into a "<ip> 1" map entry.
-func ipToMapEntry(line string) string {
-	ip := strings.TrimSpace(line)
-	if ip == "" || strings.HasPrefix(ip, "#") {
-		return ""
-	}
-	return ip + " 1"
 }
 
 func fetch(client *http.Client, url string) (string, error) {
@@ -77,12 +77,20 @@ func fetch(client *http.Client, url string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
-	// Cap the read so a misbehaving feed cannot exhaust memory.
 	b, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// cidrOnly keeps non-comment, non-empty lines verbatim (they are already CIDRs).
+func cidrOnly(line string) string {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return ""
+	}
+	return line
 }
 
 func parseLines(body string, parse func(string) string) []string {
@@ -97,8 +105,24 @@ func parseLines(body string, parse func(string) string) []string {
 	return out
 }
 
-// writeAtomic writes lines to path via a temp file + rename so readers never
-// observe a partially written map.
+// parseIPs parses one IP per line, skipping comments and blanks.
+func parseIPs(body string) []netip.Addr {
+	var out []netip.Addr
+	sc := bufio.NewScanner(strings.NewReader(body))
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		s := strings.TrimSpace(sc.Text())
+		if s == "" || strings.HasPrefix(s, "#") {
+			continue
+		}
+		if a, err := netip.ParseAddr(s); err == nil {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// writeAtomic writes lines to path via a temp file + rename.
 func writeAtomic(path string, lines []string) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".feedupdater-*")
@@ -123,49 +147,106 @@ func writeAtomic(path string, lines []string) error {
 	return os.Rename(tmpName, path)
 }
 
-func (s source) update(client *http.Client, mapsDir string) error {
+func (s cidrSource) update(client *http.Client, mapsDir string) error {
 	var lines []string
 	for _, u := range s.urls {
 		body, err := fetch(client, u)
 		if err != nil {
 			return fmt.Errorf("fetch %s: %w", u, err)
 		}
-		lines = append(lines, parseLines(body, s.parse)...)
+		lines = append(lines, parseLines(body, cidrOnly)...)
 	}
 	if len(lines) == 0 {
-		// Never overwrite a good map with an empty one on a bad fetch.
 		return fmt.Errorf("no entries parsed")
 	}
 	return writeAtomic(filepath.Join(mapsDir, s.outFile), lines)
 }
 
-func run(client *http.Client, mapsDir string) {
-	for _, s := range sources {
+// collectReputation fetches all individual-IP feeds plus an optional banlist
+// file into a desired reputation set (IP -> action).
+func collectReputation(client *http.Client, banlist string) map[netip.Addr]uint32 {
+	reps := make(map[netip.Addr]uint32)
+	for _, s := range ipSources {
+		for _, u := range s.urls {
+			body, err := fetch(client, u)
+			if err != nil {
+				slog.Error("feed fetch failed", "source", s.name, "url", u, "error", err)
+				continue
+			}
+			for _, a := range parseIPs(body) {
+				reps[a] = s.action
+			}
+		}
+	}
+	if banlist != "" {
+		b, err := os.ReadFile(banlist)
+		if err != nil {
+			slog.Error("reading banlist", "path", banlist, "error", err)
+		} else {
+			for _, a := range parseIPs(string(b)) {
+				reps[a] = actionBlock // blocks override challenges
+			}
+		}
+	}
+	return reps
+}
+
+func run(client *http.Client, mapsDir, banlist string, srv *peerserver.Server) {
+	for _, s := range cidrSources {
 		if err := s.update(client, mapsDir); err != nil {
-			slog.Error("feed update failed", "source", s.name, "error", err)
+			slog.Error("cidr feed update failed", "source", s.name, "error", err)
 			continue
 		}
-		slog.Info("feed updated", "source", s.name, "file", filepath.Join(mapsDir, s.outFile))
+		slog.Info("cidr feed updated", "source", s.name, "file", filepath.Join(mapsDir, s.outFile))
+	}
+	if srv != nil {
+		srv.ReplaceAll(collectReputation(client, banlist))
+		slog.Info("reputation updated", "entries", srv.Len())
 	}
 }
 
 func main() {
 	var (
-		mapsDir  string
-		interval time.Duration
+		mapsDir    string
+		banlist    string
+		peerListen string
+		localPeer  string
+		interval   time.Duration
 	)
-	flag.StringVar(&mapsDir, "maps-dir", "examples/haproxy/maps", "directory to write map/ACL files into")
-	flag.DurationVar(&interval, "interval", 0, "refresh interval (e.g. 6h); 0 runs once and exits")
+	flag.StringVar(&mapsDir, "maps-dir", "examples/haproxy/maps", "directory to write CIDR map/ACL files into")
+	flag.StringVar(&banlist, "banlist", "", "optional file of individual IPs to block (one per line)")
+	flag.StringVar(&peerListen, "peer-listen", "", "listen address for the HAProxy peers protocol (e.g. 127.0.0.1:10000); empty disables live reputation")
+	flag.StringVar(&localPeer, "local-peer", "berghain_feed", "this peer's name in the HAProxy peers section")
+	flag.DurationVar(&interval, "interval", 0, "refresh interval (e.g. 6h); 0 runs once (but keeps serving peers if enabled)")
 	flag.Parse()
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	run(client, mapsDir)
-	if interval <= 0 {
-		return
+	var srv *peerserver.Server
+	if peerListen != "" {
+		srv = peerserver.New(localPeer, "st_reputation_v4", "st_reputation_v6", 24*time.Hour)
+		l, err := net.Listen("tcp", peerListen)
+		if err != nil {
+			slog.Error("peers listen failed", "addr", peerListen, "error", err)
+			os.Exit(1)
+		}
+		go func() {
+			if err := srv.Serve(l); err != nil {
+				slog.Error("peers server stopped", "error", err)
+			}
+		}()
+		slog.Info("serving reputation over the peers protocol", "listen", peerListen)
 	}
-	slog.Info("feedupdater running on a schedule", "interval", interval.String())
-	for range time.Tick(interval) {
-		run(client, mapsDir)
+
+	run(client, mapsDir, banlist, srv)
+
+	if interval > 0 {
+		slog.Info("feedupdater running on a schedule", "interval", interval.String())
+		for range time.Tick(interval) {
+			run(client, mapsDir, banlist, srv)
+		}
+	} else if srv != nil {
+		// Nothing more to fetch, but keep serving peers.
+		select {}
 	}
 }

@@ -26,4 +26,6 @@ COPY examples/haproxy/ ./examples/haproxy/
 COPY examples/haproxy/haproxy.cfg ./haproxy.cfg
 COPY cmd/spop/config.yaml ./config.yaml
 
-CMD ["sh", "-c", "haproxy -f haproxy.cfg & ./berghain -config config.yaml"]
+# -L names HAProxy's local peer so it matches the `peer haproxy_local` entry.
+# feedupdater serves live IP reputation to HAProxy over the peers protocol.
+CMD ["sh", "-c", "haproxy -f haproxy.cfg -L haproxy_local & ./feedupdater -peer-listen 127.0.0.1:10001 -maps-dir examples/haproxy/maps -interval 6h & ./berghain -config config.yaml"]

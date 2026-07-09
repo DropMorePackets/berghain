@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,46 +19,52 @@ func TestParseLines(t *testing.T) {
 			t.Errorf("line %d = %q, want %q", i, got[i], want[i])
 		}
 	}
+}
 
-	tor := "1.2.3.4\n# note\n5.6.7.8\n"
-	gotTor := parseLines(tor, ipToMapEntry)
-	wantTor := []string{"1.2.3.4 1", "5.6.7.8 1"}
-	for i := range wantTor {
-		if i >= len(gotTor) || gotTor[i] != wantTor[i] {
-			t.Errorf("tor line %d = %q, want %q", i, gotTor[i:], wantTor[i])
+func TestParseIPs(t *testing.T) {
+	body := "1.2.3.4\n# comment\n\n  5.6.7.8  \n2001:db8::1\nnot-an-ip\n"
+	got := parseIPs(body)
+	want := []netip.Addr{
+		netip.MustParseAddr("1.2.3.4"),
+		netip.MustParseAddr("5.6.7.8"),
+		netip.MustParseAddr("2001:db8::1"),
+	}
+	if len(got) != len(want) {
+		t.Fatalf("parseIPs returned %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("ip %d = %v, want %v", i, got[i], want[i])
 		}
 	}
 }
 
 func TestWriteAtomic(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "tor_exit.map")
+	path := filepath.Join(dir, "cloudflare-ips.lst")
 
-	if err := writeAtomic(path, []string{"1.2.3.4 1", "5.6.7.8 1"}); err != nil {
+	if err := writeAtomic(path, []string{"1.2.3.0/24", "5.6.7.0/24"}); err != nil {
 		t.Fatalf("writeAtomic: %v", err)
 	}
-
 	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("reading result: %v", err)
 	}
 	got := string(b)
-	for _, want := range []string{"1.2.3.4 1", "5.6.7.8 1", "# Generated"} {
+	for _, want := range []string{"1.2.3.0/24", "5.6.7.0/24", "# Generated"} {
 		if !contains(got, want) {
 			t.Errorf("output missing %q; got:\n%s", want, got)
 		}
 	}
 
-	// Overwriting must fully replace the previous contents.
-	if err := writeAtomic(path, []string{"9.9.9.9 1"}); err != nil {
+	if err := writeAtomic(path, []string{"9.9.9.0/24"}); err != nil {
 		t.Fatalf("second writeAtomic: %v", err)
 	}
 	b, _ = os.ReadFile(path)
-	if contains(string(b), "1.2.3.4") {
+	if contains(string(b), "1.2.3.0") {
 		t.Errorf("stale entry survived rewrite:\n%s", b)
 	}
 
-	// No leftover temp files.
 	entries, _ := os.ReadDir(dir)
 	if len(entries) != 1 {
 		t.Errorf("expected 1 file after atomic writes, found %d", len(entries))

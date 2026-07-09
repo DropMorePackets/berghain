@@ -1,5 +1,0 @@
-# IP reputation: CIDR/IP -> action. "block" is silent-dropped; a number raises
-# the minimum challenge level. Refreshed by cmd/feedupdater. Empty by default.
-# Examples:
-# 198.51.100.0/24 block
-# 203.0.113.0/24 3
