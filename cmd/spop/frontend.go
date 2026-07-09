@@ -57,6 +57,26 @@ func releaseHostBuf(b *buffer.SliceBuffer) {
 	hostBufPool.Put(b)
 }
 
+// hostWithoutPort strips a trailing :port from a Host header value. Cookies are
+// not port-scoped, so the port must not be part of the cookie identity, the
+// trusted-domain match, or the cookie Domain attribute (issue #46).
+func hostWithoutPort(host []byte) []byte {
+	if len(host) == 0 {
+		return host
+	}
+	// IPv6 literal, e.g. [::1]:8080 -> [::1]
+	if host[0] == '[' {
+		if i := bytes.IndexByte(host, ']'); i >= 0 {
+			return host[:i+1]
+		}
+		return host
+	}
+	if i := bytes.LastIndexByte(host, ':'); i >= 0 {
+		return host[:i]
+	}
+	return host
+}
+
 func getTrustedDomain(host []byte, td []string) []byte {
 	h := string(host)
 	for _, d := range td {
@@ -101,13 +121,14 @@ func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWri
 		slog.ErrorContext(ctx, "cant read netip.Address from message")
 		return
 	}
-	ctx = context.WithValue(ctx, "src", addr.String())
+	// Log a keyed hash of the source address, never the plaintext IP.
+	ctx = context.WithValue(ctx, "src", f.bh.HashSource(addr))
 	ri.SrcAddr = addr
 
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {
 		return
 	}
-	host := k.ValueBytes()
+	host := hostWithoutPort(k.ValueBytes())
 	ctx = context.WithValue(ctx, "host", string(host))
 	if len(host) > hostBufferLength {
 		slog.ErrorContext(ctx, "host length too big")
@@ -168,7 +189,7 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {
 		return
 	}
-	host := k.ValueBytes()
+	host := hostWithoutPort(k.ValueBytes())
 	if len(host) > hostBufferLength {
 		slog.ErrorContext(ctx, "host length too big")
 	}
@@ -208,6 +229,20 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 		return
 	}
 	req.Body = k.ValueBytes()
+
+	// The client-supplied correlation id (shown to the user as ena@<uuid>) lets
+	// support and the agent logs be tied to a specific challenge attempt. It is
+	// untrusted client input, so it is only ever logged (capped, and slog escapes
+	// it), never used for a security decision.
+	if err := readExpectedKVEntry(ctx, m, k, "session"); err != nil {
+		return
+	}
+	if sid := k.ValueBytes(); len(sid) > 0 {
+		if len(sid) > 64 {
+			sid = sid[:64]
+		}
+		ctx = context.WithValue(ctx, "session", string(sid))
+	}
 
 	resp := berghain.AcquireValidatorResponse()
 	defer berghain.ReleaseValidatorResponse(resp)
