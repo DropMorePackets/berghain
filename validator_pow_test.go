@@ -16,6 +16,7 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 
 	type powChallenge struct {
 		T int    `json:"t"`
+		D string `json:"d"`
 		R string `json:"r"`
 		S string `json:"s"`
 	}
@@ -25,8 +26,13 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if p.T != 1 {
+	if p.T != 1 && p.T != 2 {
 		return nil, fmt.Errorf("invalid challenge type: %d", p.T)
+	}
+
+	difficulty, err := strconv.ParseInt(p.D, 16, 0)
+	if err != nil {
+		return nil, fmt.Errorf("invalid difficulty %q: %w", p.D, err)
 	}
 
 	h := NewZeroHasher(hashAlgo())
@@ -36,7 +42,7 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 		is := strconv.Itoa(i)
 		h.Write([]byte(is))
 
-		if bytes.HasPrefix(h.Sum(nil), []byte{0x00, 0x00}) {
+		if hasLeadingZeroBits(h.Sum(nil), int(difficulty)) {
 			solution := p.R + "-" + p.S + "-" + is
 			return []byte(solution), nil
 		}
@@ -46,13 +52,146 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 	panic("unreachable")
 }
 
+func Test_hasLeadingZeroBits(t *testing.T) {
+	tests := []struct {
+		b    []byte
+		bits int
+		want bool
+	}{
+		{[]byte{0xff}, 0, true},
+		{[]byte{0x7f}, 1, true},
+		{[]byte{0x80}, 1, false},
+		{[]byte{0x00}, 8, true},
+		{[]byte{0x01}, 8, false},
+		{[]byte{0x00, 0x0f}, 12, true},
+		{[]byte{0x00, 0x10}, 12, false},
+		{[]byte{0x00, 0x00}, 16, true},
+		{[]byte{0x00, 0x00, 0x80}, 17, false},
+		{[]byte{0x00, 0x00, 0x00}, 17, true},
+	}
+	for _, tt := range tests {
+		if got := hasLeadingZeroBits(tt.b, tt.bits); got != tt.want {
+			t.Errorf("hasLeadingZeroBits(%x, %d) = %v, want %v", tt.b, tt.bits, got, tt.want)
+		}
+	}
+}
+
+func Test_effectivePOWDifficulty(t *testing.T) {
+	for in, want := range map[int]int{-5: 16, 0: 16, 1: 1, 16: 16, 200: 200} {
+		if got := effectivePOWDifficulty(in); got != want {
+			t.Errorf("effectivePOWDifficulty(%d) = %d, want %d", in, got, want)
+		}
+	}
+}
+
+// A POW level with Difficulty unset (Go zero value) must fall back to the
+// historic 16-bit target, not a zero-work "accept any nonce" challenge.
+func Test_validatorPOW_defaultDifficulty(t *testing.T) {
+	bh := NewBerghain(generateSecret(t))
+	bh.Levels = []*LevelConfig{
+		{Duration: time.Minute, Type: ValidationTypePOW}, // Difficulty intentionally unset
+	}
+
+	req, resp := AcquireValidatorRequest(), AcquireValidatorResponse()
+	req.Identifier = &RequestIdentifier{
+		SrcAddr: netip.MustParseAddr("1.2.3.4"),
+		Host:    []byte("example.com"),
+		Level:   1,
+	}
+	req.Method = http.MethodGet
+	if err := validatorPOW(bh, req, resp); err != nil {
+		t.Fatalf("validator failed: %v", err)
+	}
+
+	body := resp.Body.ReadBytes()
+	var adv struct {
+		D string `json:"d"`
+	}
+	if err := json.Unmarshal(body, &adv); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if adv.D != "10" {
+		t.Errorf("advertised difficulty = %q, want 10 (16 bits default)", adv.D)
+	}
+
+	solution, err := solvePOW(t, body)
+	if err != nil {
+		t.Fatalf("solve: %v", err)
+	}
+	req.Method = http.MethodPost
+	req.Body = solution
+	if err := validatorPOW(bh, req, resp); err != nil {
+		t.Fatalf("POST failed: %v", err)
+	}
+	if err := bh.IsValidCookie(*req.Identifier, resp.Token.ReadBytes()); err != nil {
+		t.Errorf("invalid cookie: %v", err)
+	}
+}
+
+func Test_validatorPOW_difficulty(t *testing.T) {
+	// 1 exercises the sub-byte remainder path, 8 the whole-byte path, 12 both.
+	for _, difficulty := range []int{1, 8, 12} {
+		difficulty := difficulty
+		t.Run(fmt.Sprintf("bits=%d", difficulty), func(t *testing.T) {
+			bh := NewBerghain(generateSecret(t))
+			bh.Levels = []*LevelConfig{
+				{
+					Duration:   time.Minute,
+					Type:       ValidationTypePOW,
+					Difficulty: difficulty,
+				},
+			}
+
+			req, resp := AcquireValidatorRequest(), AcquireValidatorResponse()
+			req.Identifier = &RequestIdentifier{
+				SrcAddr: netip.MustParseAddr("1.2.3.4"),
+				Host:    []byte("example.com"),
+				Level:   1,
+			}
+			req.Method = http.MethodGet
+
+			if err := validatorPOW(bh, req, resp); err != nil {
+				t.Fatalf("validator failed: %v", err)
+			}
+
+			body := resp.Body.ReadBytes()
+
+			var adv struct {
+				D string `json:"d"`
+			}
+			if err := json.Unmarshal(body, &adv); err != nil {
+				t.Fatalf("decoding challenge: %v", err)
+			}
+			if want := fmt.Sprintf("%02x", difficulty); adv.D != want {
+				t.Errorf("advertised difficulty = %q, want %q", adv.D, want)
+			}
+
+			solution, err := solvePOW(t, body)
+			if err != nil {
+				t.Fatalf("while solving pow: %v", err)
+			}
+
+			req.Method = http.MethodPost
+			req.Body = solution
+			if err := validatorPOW(bh, req, resp); err != nil {
+				t.Fatalf("validator failed: %v", err)
+			}
+
+			if err := bh.IsValidCookie(*req.Identifier, resp.Token.ReadBytes()); err != nil {
+				t.Errorf("invalid cookie: %v", err)
+			}
+		})
+	}
+}
+
 func Test_validatorPOW(t *testing.T) {
 	bh := NewBerghain(generateSecret(t))
 
 	bh.Levels = []*LevelConfig{
 		{
-			Duration: time.Minute,
-			Type:     ValidationTypePOW,
+			Duration:   time.Minute,
+			Type:       ValidationTypePOW,
+			Difficulty: 16,
 		},
 	}
 
@@ -99,8 +238,9 @@ func Test_validatorPOW_unique(t *testing.T) {
 
 	bh.Levels = []*LevelConfig{
 		{
-			Duration: time.Minute,
-			Type:     ValidationTypePOW,
+			Duration:   time.Minute,
+			Type:       ValidationTypePOW,
+			Difficulty: 16,
 		},
 	}
 
@@ -139,8 +279,9 @@ func Benchmark_validatorPOW_GET(b *testing.B) {
 
 	bh.Levels = []*LevelConfig{
 		{
-			Duration: time.Minute,
-			Type:     ValidationTypePOW,
+			Duration:   time.Minute,
+			Type:       ValidationTypePOW,
+			Difficulty: 16,
 		},
 	}
 
@@ -174,8 +315,9 @@ func Benchmark_validatorPOW_POST(b *testing.B) {
 
 	bh.Levels = []*LevelConfig{
 		{
-			Duration: time.Minute,
-			Type:     ValidationTypePOW,
+			Duration:   time.Minute,
+			Type:       ValidationTypePOW,
+			Difficulty: 16,
 		},
 	}
 

@@ -3,8 +3,10 @@ package berghain
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"hash"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -13,6 +15,10 @@ type LevelConfig struct {
 	Countdown int
 	Duration  time.Duration
 	Type      ValidationType
+
+	// Difficulty is the number of leading zero bits a POW solution hash must
+	// have. It is only used by POW-style validators and is ignored otherwise.
+	Difficulty int
 }
 
 type Berghain struct {
@@ -43,6 +49,25 @@ func (b *Berghain) acquireHMAC() hash.Hash {
 func (b *Berghain) releaseHMAC(h hash.Hash) {
 	h.Reset()
 	b.hmac.Put(h)
+}
+
+// HashSource returns a keyed, non-reversible hex digest of the given source
+// address, suitable for correlating log lines without ever writing an IP in
+// plaintext. It reuses the HMAC secret, so the mapping cannot be reversed even
+// by the operator, honoring Berghain's privacy design.
+func (b *Berghain) HashSource(a netip.Addr) string {
+	h := b.acquireHMAC()
+	defer b.releaseHMAC(h)
+
+	raw := AcquireCookieBuffer()
+	defer ReleaseCookieBuffer(raw)
+
+	// netip.AsSlice would allocate; append into the pooled buffer instead.
+	addrSlice := raw.WriteBytes()[:0]
+	addrSlice = a.AppendTo(addrSlice)
+	_, _ = h.Write(addrSlice)
+
+	return hex.EncodeToString(h.Sum(nil)[:8])
 }
 
 func (b *Berghain) LevelConfig(level uint8) *LevelConfig {

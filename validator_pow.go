@@ -28,6 +28,9 @@ func releaseSHA256(h hash.Hash) {
 }
 
 type powValidator struct {
+	// template is the pre-encoded challenge JSON copied into the response body.
+	// POW variants differ only by the "t" (challenge type) value it carries.
+	template string
 }
 
 const (
@@ -36,18 +39,28 @@ const (
 	validatorPOWMinSolutionLength = len(validatorPOWRandom + "-" + validatorPOWHash + "-0")
 )
 
-var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
-	Countdown int    `json:"c"`
-	Type      int    `json:"t"`
-	Random    string `json:"r"`
-	Hash      string `json:"s"`
-}{
-	// Only strings have to be set, as the default is zero for ints.
-	// We do set the Type here because it is static anyway...
-	Type:   1,
-	Random: "0000000000000000",
-	Hash:   "0000000000000000000000000000000000000000000000000000000000000000",
-})
+const hexdigits = "0123456789abcdef"
+
+// powChallengeTemplate builds the pre-encoded challenge JSON for a POW variant.
+// Only the "t" value varies; every mutable field stays fixed-width so onNew can
+// overwrite it by offset. Difficulty is a fixed-width two-hex-char byte (leading
+// zero bits, 0-255) so the hand-packed template keeps its field offsets.
+func powChallengeTemplate(challengeType int) string {
+	return mustJSONEncodeString(struct {
+		Countdown  int    `json:"c"`
+		Type       int    `json:"t"`
+		Difficulty string `json:"d"`
+		Random     string `json:"r"`
+		Hash       string `json:"s"`
+	}{
+		Type:       challengeType,
+		Difficulty: "00",
+		Random:     "0000000000000000",
+		Hash:       "0000000000000000000000000000000000000000000000000000000000000000",
+	})
+}
+
+var validatorPOWChallengeTemplate = powChallengeTemplate(1)
 
 // This prevents invalid template strings by validatoring them on start
 var _ = func() bool {
@@ -58,19 +71,26 @@ var _ = func() bool {
 	return true
 }()
 
-func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
+func (p powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
 	h := b.acquireHMAC()
 	defer b.releaseHMAC(h)
 
 	lc := b.LevelConfig(req.Identifier.Level)
 
-	copy(resp.Body.WriteBytes(), validatorPOWChallengeTemplate)
+	copy(resp.Body.WriteBytes(), p.template)
 
 	resp.Body.AdvanceW(len(`{"c":`))
 	// the following conversion is faster than sprintf but also way uglier, I am sorry.
 	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
 	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
-	resp.Body.AdvanceW(len(`,"t":1,"r":"`))
+	resp.Body.AdvanceW(len(`,"t":1,"d":"`))
+	// Write the difficulty as a fixed-width two-hex-char byte (leading zero bits).
+	// This is advisory for the client; the server enforces the difficulty itself.
+	difficulty := effectivePOWDifficulty(lc.Difficulty)
+	diffArea := resp.Body.WriteNBytes(2)
+	diffArea[0] = hexdigits[byte(difficulty)>>4]
+	diffArea[1] = hexdigits[byte(difficulty)&0x0f]
+	resp.Body.AdvanceW(len(`","r":"`))
 	timestampArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
 	resp.Body.AdvanceW(len(`","s":"`))
 	hexArea := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
@@ -94,8 +114,10 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 }
 
 func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
-	// req.Body should be at least validatorPOWMinSolutionLength
-	if len(req.Body) <= validatorPOWMinSolutionLength {
+	// req.Body should be at least validatorPOWMinSolutionLength. A minimal valid
+	// solution (single-digit nonce) has exactly that length, so reject only when
+	// strictly shorter — otherwise low-difficulty levels with a tiny nonce fail.
+	if len(req.Body) < validatorPOWMinSolutionLength {
 		// invalid solution data
 		return ErrInvalidLength
 	}
@@ -145,17 +167,47 @@ func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorR
 	sha.Write(solArea)
 	sum := sha.Sum(nil)
 
-	if !bytes.HasPrefix(sum, []byte{0x00, 0x00}) {
+	if !hasLeadingZeroBits(sum, effectivePOWDifficulty(b.LevelConfig(req.Identifier.Level).Difficulty)) {
 		return errInvalidSolution
 	}
 
 	return nil
 }
 
+// defaultPOWDifficulty preserves the historic 16-bit (two zero byte) target for
+// levels that leave Difficulty unset — e.g. a LevelConfig constructed directly
+// rather than via the YAML parser. Without this a zero difficulty would accept
+// any nonce, silently disabling the proof of work.
+const defaultPOWDifficulty = 16
+
+func effectivePOWDifficulty(d int) int {
+	if d <= 0 {
+		return defaultPOWDifficulty
+	}
+	return d
+}
+
+// hasLeadingZeroBits reports whether b begins with at least bits zero bits.
+// It is zero-allocation and does not read past bits/8 (rounded up) bytes of b.
+func hasLeadingZeroBits(b []byte, bits int) bool {
+	n := bits >> 3
+	for i := 0; i < n; i++ {
+		if b[i] != 0 {
+			return false
+		}
+	}
+	if r := bits & 7; r != 0 {
+		if b[n]>>(8-r) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 var errInvalidSolution = fmt.Errorf("invalid solution")
 
 func validatorPOW(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
-	var p powValidator
+	p := powValidator{template: validatorPOWChallengeTemplate}
 
 	switch req.Method {
 	case http.MethodPost:

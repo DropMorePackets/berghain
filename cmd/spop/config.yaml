@@ -19,6 +19,10 @@ frontend:
         countdown: 9  # default is 3 seconds, maximum is 9
       - duration: 20s
         type: pow
+        # difficulty is the number of leading zero bits the POW solution must
+        # have. Default is 16, range 1-255. Higher = harder for the client.
+        difficulty: 16
       - duration: 10s
         type: pow
         countdown: 0
+        difficulty: 22

@@ -17,6 +17,29 @@ func generateSecret(tb testing.TB) []byte {
 	return b
 }
 
+func TestHashSource(t *testing.T) {
+	bh := NewBerghain(generateSecret(t))
+
+	a := netip.MustParseAddr("1.2.3.4")
+	got := bh.HashSource(a)
+
+	if got != bh.HashSource(a) {
+		t.Errorf("HashSource is not deterministic")
+	}
+	if len(got) != 16 {
+		t.Errorf("HashSource length = %d, want 16", len(got))
+	}
+	if got == a.String() {
+		t.Errorf("HashSource returned the plaintext address")
+	}
+	if got == bh.HashSource(netip.MustParseAddr("1.2.3.5")) {
+		t.Errorf("HashSource collided for distinct addresses")
+	}
+	if got == NewBerghain(generateSecret(t)).HashSource(a) {
+		t.Errorf("HashSource does not depend on the secret")
+	}
+}
+
 func TestBerghain(t *testing.T) {
 	bh := NewBerghain(generateSecret(t))
 	bh.Levels = []*LevelConfig{

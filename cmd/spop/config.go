@@ -51,9 +51,10 @@ func (fc FrontendConfig) AsBerghain(s []byte) *berghain.Berghain {
 }
 
 type LevelConfig struct {
-	Countdown *int          `yaml:"countdown"`
-	Duration  time.Duration `yaml:"duration"`
-	Type      string        `yaml:"type"`
+	Countdown  *int          `yaml:"countdown"`
+	Duration   time.Duration `yaml:"duration"`
+	Type       string        `yaml:"type"`
+	Difficulty *int          `yaml:"difficulty"`
 }
 
 func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
@@ -72,11 +73,24 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 		lc.Countdown = *c.Countdown
 	}
 
+	if c.Difficulty == nil {
+		// no level specific difficulty was provided; the default reproduces the
+		// historic hard-coded 16-bit (two zero byte) POW target for backward compat.
+		lc.Difficulty = 16
+	} else if *c.Difficulty < 1 || *c.Difficulty > 255 {
+		// difficulty (leading zero bits) is wire-encoded as a single two-hex-char byte.
+		Fatal("difficulty out of range, cannot proceed", "difficulty_have", *c.Difficulty, "difficulty_min", 1, "difficulty_max", 255)
+	} else {
+		lc.Difficulty = *c.Difficulty
+	}
+
 	switch c.Type {
 	case "none":
 		lc.Type = berghain.ValidationTypeNone
 	case "pow":
 		lc.Type = berghain.ValidationTypePOW
+	case "pow-worker":
+		lc.Type = berghain.ValidationTypePOWWorker
 	default:
 		Fatal("unknown validation type", "validator", c.Type)
 	}
