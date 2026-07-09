@@ -167,9 +167,9 @@
       </div>
       <div class="card">
         <h3>6. Still stuck?</h3>
-        <p>If the verification still repeats on an up-to-date, mainstream browser,
-          <a href="#report">report an issue</a> with your browser and operating system so an
-          operator can investigate.</p>
+        <p>Note the session ID shown on the verification screen (it looks like
+          <code>ena@&lt;uuid&gt;</code>) and <a href="#report">report an issue</a> so an operator can
+          look it up.</p>
       </div>
     </div>
   </section>
@@ -234,7 +234,7 @@
           <tr><td>Ad blockers (standard lists)</td><td><span class="pill yes">Usually fine</span></td><td>No action needed in most cases.</td></tr>
           <tr><td>Script blockers (e.g. NoScript, uMatrix)</td><td><span class="pill no">Breaks the challenge</span></td><td>Allow scripts for the site, or disable temporarily.</td></tr>
           <tr><td>Canvas / fingerprint blockers</td><td><span class="pill warn">May break harder challenges</span></td><td>Whitelist the site if verification repeats.</td></tr>
-          <tr><td>Anti-fingerprinting suites (e.g. JShelter)</td><td><span class="pill warn">May block the crypto the check needs</span></td><td>Relax protection for the site.</td></tr>
+          <tr><td>Anti-fingerprinting suites (e.g. JShelter)</td><td><span class="pill warn">May block Web Workers / crypto</span></td><td>Relax protection for the site.</td></tr>
           <tr><td>Cookie blockers / auto-cleaners</td><td><span class="pill no">Loses clearance</span></td><td>Allow cookies for the site so clearance persists.</td></tr>
         </tbody>
       </table>
@@ -304,12 +304,12 @@
       </details>
 
       <details class="accordion">
-        <summary>Proof-of-work challenge</summary>
+        <summary>Configurable proof-of-work difficulty</summary>
         <div class="body">
-          <p>A level can require a proof-of-work: your browser must find an input whose hash begins
-            with a run of zero bits. It is deliberately cheap for one genuine visitor but costly to
-            repeat across a bot farm. The computation runs entirely in your browser &mdash; the server
-            only hands out the puzzle and checks the answer.</p>
+          <p>A level can require a proof-of-work: your browser must find an input whose hash has a
+            configured number of leading zero bits. The operator tunes the difficulty &mdash; higher
+            difficulty means more work for the client. It is deliberately cheap for one genuine visitor
+            but costly to repeat across a bot farm. The computation runs entirely in your browser.</p>
         </div>
       </details>
     </div>
@@ -390,10 +390,11 @@
       working through the <a href="#blocked">troubleshooting steps</a>, please open an issue so an
       operator can help.</p>
     <div class="card">
-      <h3>What to include</h3>
-      <p>Tell us your browser and version, your operating system, the address you were trying to
-        reach and what happened. A screenshot of the verification screen helps too. The more detail
-        you provide, the faster an operator can reproduce and fix the problem.</p>
+      <h3>Please include your session ID</h3>
+      <p>The verification screen shows a session ID that looks like <code>ena@&lt;uuid&gt;</code>.
+        It is randomly generated and is <em>not</em> derived from your IP, so it leaks no personal
+        data &mdash; but it lets an operator correlate your report with the server logs. Copy it into
+        your report along with your browser, operating system and what you were trying to do.</p>
     </div>
     <div class="btn-row" style="margin-top:16px">
       <a class="btn primary" href="https://github.com/DropMorePackets/berghain/issues">Report an issue on GitHub</a>

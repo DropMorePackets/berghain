@@ -1,0 +1,35 @@
+# Optional CrowdSec integration (the "full" reputation/ban path).
+#
+# CrowdSec provides community IP reputation and true escalating/decaying ban
+# durations that HAProxy stick-tables cannot express. It runs alongside Berghain
+# as a SEPARATE SPOE filter — Berghain itself stays stateless.
+#
+# This is a starting point; you must enroll the agent and register the bouncer's
+# API key (see examples/crowdsec/README.md). Run with:
+#   docker compose -f docker-compose.yml -f examples/crowdsec/docker-compose.crowdsec.yml up
+
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    environment:
+      - COLLECTIONS=crowdsecurity/haproxy crowdsecurity/base-http-scenarios
+    volumes:
+      - crowdsec-db:/var/lib/crowdsec/data
+      - crowdsec-config:/etc/crowdsec
+      # Share the HAProxy logs so CrowdSec can parse them for scenarios.
+      - ./logs:/var/log/haproxy:ro
+    restart: unless-stopped
+
+  crowdsec-spoa-bouncer:
+    image: crowdsecurity/crowdsec-spoa-bouncer:latest
+    depends_on:
+      - crowdsec
+    environment:
+      # Register this with: docker compose exec crowdsec cscli bouncers add haproxy-spoa
+      - BOUNCER_API_KEY=${CROWDSEC_BOUNCER_API_KEY:-changeme}
+      - CROWDSEC_URL=http://crowdsec:8080
+    restart: unless-stopped
+
+volumes:
+  crowdsec-db:
+  crowdsec-config:
