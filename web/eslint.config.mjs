@@ -2,8 +2,7 @@ import globals from "globals";
 import babelParser from "@babel/eslint-parser";
 
 export default [{
-    files: ["**/*.js"],
-    ignores: ["**/dist", "**/node_modules"],
+    ignores: ["**/dist/**", "**/node_modules/**"],
 }, {
     plugins: {},
 

@@ -2,42 +2,24 @@
  * Collection of challenges.
  */
 
-import {sha256} from "@noble/hashes/sha256";
-import {bytesToHex} from "@noble/hashes/utils";
-
-async function doHash(data){
-    const input = new TextEncoder().encode(data);
-
-    if (import.meta.env.VITE_NATIVE_CRYPTO === "true"){
-        const hashBuffer = await crypto.subtle.digest("sha-256", input);
-        return bytesToHex(new Uint8Array(hashBuffer));
-    }
-    return bytesToHex(sha256(input));
-}
+import PowWorker from "./powWorker.js?worker&inline";
+import {doHash, hasLeadingZeroBits} from "./pow";
+import {getSessionId} from "./session";
 
 /**
- * Challenge POW.
+ * Submit a solved POW nonce for a challenge.
  *
  * @param {object} challenge
+ * @param {number} nonce
  * @return {Promise<void>}
  */
-async function challengePOW(challenge){
-    let hash;
-    let i;
-
-    // eslint-disable-next-line no-constant-condition
-    for (i = 0; true; i++){
-        hash = await doHash(challenge.r + i.toString());
-        if (hash.startsWith("0000")){
-            break;
-        }
-    }
-
+async function submitSolution(challenge, nonce){
     try {
         const response = await fetch("/cdn-cgi/challenge-platform/challenge", {
-            body: challenge.r + "-" + challenge.s + "-" + i.toString(),
+            body: challenge.r + "-" + challenge.s + "-" + nonce.toString(),
             headers: {
                 "Content-Type": "text/plain",
+                "X-Berghain-Session": getSessionId(),
             },
             method: "POST",
         });
@@ -47,6 +29,50 @@ async function challengePOW(challenge){
     }
     catch (error){
         console.error(error.message);
+    }
+}
+
+/**
+ * Challenge POW, solved on the main thread.
+ *
+ * @param {object} challenge
+ * @return {Promise<void>}
+ */
+async function challengePOW(challenge){
+    const difficulty = parseInt(challenge.d, 16);
+    let i;
+
+    // eslint-disable-next-line no-constant-condition
+    for (i = 0; true; i++){
+        const hash = await doHash(challenge.r + i.toString());
+        if (hasLeadingZeroBits(hash, difficulty)){
+            break;
+        }
+    }
+
+    await submitSolution(challenge, i);
+}
+
+/**
+ * Challenge POW, solved inside a Web Worker (required by the pow-worker type).
+ *
+ * @param {object} challenge
+ * @return {Promise<void>}
+ */
+async function challengePOWWorker(challenge){
+    const difficulty = parseInt(challenge.d, 16);
+    const worker = new PowWorker();
+
+    try {
+        const nonce = await new Promise((resolve, reject) => {
+            worker.onmessage = (e) => resolve(e.data);
+            worker.onerror = () => reject(new Error("Web Worker failed"));
+            worker.postMessage({r: challenge.r, d: difficulty});
+        });
+        await submitSolution(challenge, nonce);
+    }
+    finally {
+        worker.terminate();
     }
 }
 
@@ -67,6 +93,8 @@ export function getChallengeSolver(challengeType){
             return ["Please wait...", challengeNone];
         case 1:
             return ["Solving POW challenge...", challengePOW];
+        case 2:
+            return ["Solving POW challenge (worker)...", challengePOWWorker];
         default:
             throw new Error(`Unknown challenge type: ${challengeType}`);
     }

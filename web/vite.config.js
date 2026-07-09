@@ -10,6 +10,15 @@ export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), "");
 
     return {
+        resolve: {
+            alias: {
+                // Operators can override challenge-page behaviour without forking
+                // web/ by pointing VITE_HOOKS at their own hooks module.
+                "berghain-hooks": env.VITE_HOOKS
+                    ? resolve(process.cwd(), env.VITE_HOOKS)
+                    : resolve(__dirname, "src/hooks-default.js"),
+            },
+        },
         plugins: [
             viteSingleFile(),
             createHtmlPlugin({

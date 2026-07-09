@@ -34,6 +34,28 @@
     position: absolute;
 }
 
+.capability-errors {
+    text-align: left;
+    margin: .5em 0;
+    padding: .5em 1em;
+    border-left: 3px solid #d9822b;
+    background-color: #fdf6ec;
+    font-size: 90%;
+
+    ul {
+        margin: .25em 0 0;
+        padding-left: 1.2em;
+    }
+}
+
+.session-id {
+    display: block;
+    margin-top: .5em;
+    color: #909090;
+    font-size: 80%;
+    font-family: monospace;
+}
+
 code {
     padding: 16px;
     overflow: auto;
