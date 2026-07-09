@@ -52,14 +52,21 @@ jobs:
   e2e:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.24'
 
-      - name: setup environment
+      - name: Set up Node
+        uses: actions/setup-node@v4
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+
+      - name: Install HAProxy
         run: |
           sudo apt-get install -y software-properties-common
           sudo add-apt-repository -y ppa:vbernat/haproxy-3.0
@@ -67,5 +74,31 @@ jobs:
           sudo apt-get install -y haproxy
           haproxy -vv
 
-      - name: Test E2E
-        run: go test -v ./... --tags=e2e
+      - name: Build web bundles
+        run: |
+          cd web
+          npm ci
+          npm run build
+
+      - name: Config check
+        run: haproxy -c -f examples/haproxy/haproxy.cfg
+
+      - name: Browser E2E
+        env:
+          BERGHAIN_E2E_BASE_URL: http://localhost:8080
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+        # The stack must be started and exercised in the SAME step: backgrounded
+        # processes are killed between steps. Fail hard if it never comes up so
+        # the browser test can never silently skip.
+        run: |
+          go build -o /tmp/berghain ./cmd/spop
+          rm -f ./spop.sock /tmp/haproxy-admin.sock
+          /tmp/berghain -config cmd/spop/config.yaml &
+          haproxy -db -f examples/haproxy/haproxy.cfg &
+          ready=
+          for i in $(seq 1 30); do
+            if curl -sf -A "Mozilla/5.0" http://localhost:8080/ >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ -z "$ready" ]; then echo "stack failed to become ready"; cat /tmp/*.log 2>/dev/null; exit 1; fi
+          cd test/e2e && go test -tags e2e -v
