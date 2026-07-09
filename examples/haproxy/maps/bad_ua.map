@@ -1,0 +1,20 @@
+# Substring map of blocked User-Agents, matched case-insensitively via
+# map_sub() against the lowercased User-Agent header. Format: <substring> <value>.
+# This is an ILLUSTRATIVE default; tune it for your deployment. Matched clients
+# are tarpitted (see examples/haproxy/haproxy.cfg).
+curl 1
+wget 1
+python-requests 1
+python-urllib 1
+aiohttp 1
+httpx 1
+go-http-client 1
+libwww-perl 1
+okhttp 1
+node-fetch 1
+axios 1
+dart 1
+scrapy 1
+httpclient 1
+java/ 1
+guzzlehttp 1

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access temporarily blocked</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #1a1a2e;
+      color: #e8e8ef;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    .box { max-width: 32rem; padding: 2rem; }
+    h1 { font-weight: 800; letter-spacing: 0.04em; }
+    strong { color: #ffd166; }
+    .muted { opacity: 0.7; font-size: 0.9rem; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Access temporarily blocked</h1>
+    <p>You have made too many verification attempts.</p>
+    <p>Please try again in <strong>%[var(txn.ban_remaining)]</strong> seconds.</p>
+    <p class="muted">The block lifts automatically. Requests to lift it manually are ignored.</p>
+  </div>
+</body>
+</html>

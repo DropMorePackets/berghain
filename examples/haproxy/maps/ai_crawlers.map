@@ -1,0 +1,24 @@
+# Known AI crawler / assistant User-Agents (substring, matched case-insensitively
+# via map_sub against the lowercased User-Agent). Format: <substring> <value>.
+# Used by the UA-filtering example (examples/haproxy/haproxy-ua-filtering.cfg) to
+# always challenge AI crawlers. Illustrative — tune for your deployment.
+gptbot 1
+oai-searchbot 1
+chatgpt-user 1
+claudebot 1
+claude-web 1
+anthropic-ai 1
+ccbot 1
+google-extended 1
+googleother 1
+bytespider 1
+perplexitybot 1
+amazonbot 1
+applebot-extended 1
+meta-externalagent 1
+facebookbot 1
+imagesiftbot 1
+diffbot 1
+cohere-ai 1
+timpibot 1
+omgili 1

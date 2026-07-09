@@ -1,0 +1,4 @@
+# Hard banlist: CIDR/IP -> 1. Matched clients are silent-dropped.
+# Refreshed out-of-band by cmd/feedupdater (e.g. from a CrowdSec decision export).
+# Empty by default. Example:
+# 203.0.113.7 1

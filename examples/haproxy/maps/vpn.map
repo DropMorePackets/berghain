@@ -1,0 +1,3 @@
+# Known VPN exit ranges: CIDR -> 1. Matched clients get a raised challenge
+# level (not blocked). Refreshed by cmd/feedupdater. Empty by default. Example:
+# 192.0.2.0/24 1

@@ -1,0 +1,19 @@
+# Honest tools / feed readers that the UA-filtering example lets through WITHOUT
+# a challenge (substring, matched case-insensitively via map_sub against the
+# lowercased User-Agent). This is the opposite policy to bad_ua.map (which
+# tarpits tools) — pick whichever fits your deployment. Illustrative.
+curl 1
+wget 1
+feedly 1
+feedbin 1
+inoreader 1
+newsblur 1
+theoldreader 1
+feedparser 1
+tiny tiny rss 1
+ttrss 1
+miniflux 1
+nextcloud-news 1
+rss 1
+atom 1
+podcast 1

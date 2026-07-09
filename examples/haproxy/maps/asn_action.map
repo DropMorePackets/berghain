@@ -1,0 +1,5 @@
+# ASN -> action: "block" (silent-drop), "challenge" (raise level), or "pass".
+# Curated (datacenter/abusive ASNs), refreshed by cmd/feedupdater. Empty by default.
+# Examples (illustrative only — tune for your deployment):
+# 16509 challenge
+# 14061 challenge

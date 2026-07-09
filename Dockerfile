@@ -13,12 +13,16 @@ FROM golang:1.24 AS backend-builder
 WORKDIR /app
 COPY . .
 RUN go build -o berghain ./cmd/spop
+RUN go build -o feedupdater ./cmd/feedupdater
 
 # Stage 3: Final image
 FROM haproxy:lts-bookworm
 WORKDIR /app
 COPY --from=frontend-builder /app/web/dist ./web/dist
 COPY --from=backend-builder /app/berghain ./berghain
+COPY --from=backend-builder /app/feedupdater ./feedupdater
+# The whole example haproxy tree (cfg + maps + errors) so the image is self-contained.
+COPY examples/haproxy/ ./examples/haproxy/
 COPY examples/haproxy/haproxy.cfg ./haproxy.cfg
 COPY cmd/spop/config.yaml ./config.yaml
 
