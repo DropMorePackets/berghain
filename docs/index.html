@@ -377,7 +377,9 @@
         <summary>Rate limiting</summary>
         <div class="body">
           <p>Operators commonly add request rate limits in HAProxy so that even verified clients
-            cannot flood an endpoint. Limits and thresholds are set per deployment.</p>
+            cannot flood an endpoint. The example also applies a flat, expiring ban after too many
+            challenge submissions; the verification screen shows the remaining time. Limits and
+            thresholds are set per deployment.</p>
         </div>
       </details>
     </div>

@@ -1,6 +1,8 @@
 import {getChallengeSolver} from "./challanges";
 import * as loader from "./loader.js";
 
+const CHALLENGE_TYPE_BANNED = 3;
+
 /**
  * Decide and solve browser challenges.
  */
@@ -30,6 +32,12 @@ export async function doChallenge(){
 
         const challenge = await getChallenge();
         const {t} = challenge;
+
+        if (t === CHALLENGE_TYPE_BANNED){
+            loader.banCountdown(challenge.remaining);
+            return;
+        }
+
         countdown = challenge.c;
 
         const [name, solver] = getChallengeSolver(t);

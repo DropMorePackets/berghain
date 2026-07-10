@@ -67,3 +67,62 @@ export function stop(countdown, failed = false){
         }
     }, 1000);
 }
+
+/**
+ * Format a duration in seconds as "Dd HH:MM:SS" (days omitted when zero).
+ *
+ * @param {number} totalSeconds
+ * @return {string}
+ */
+export function formatDuration(totalSeconds){
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (value) => value.toString().padStart(2, "0");
+
+    if (days > 0){
+        return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+/**
+ * Render HAProxy's remaining flat-ban duration and reload when it expires.
+ *
+ * @param {number} remainingSeconds
+ */
+export function banCountdown(remainingSeconds){
+    const loader = /** @type {HTMLDivElement} */ (document.querySelector(".circle-loader"));
+    const container = /** @type {HTMLDivElement} */ (document.querySelector(".captcha-container"));
+    if (loader){
+        loader.style.visibility = "hidden";
+    }
+    if (container){
+        container.classList.remove("alert-warning");
+        container.classList.add("alert-danger");
+    }
+
+    let remaining = Math.max(0, Math.floor(Number(remainingSeconds) || 0));
+    const render = () => {
+        if (remaining <= 0){
+            setChallengeInfo("Block expired. Reloading ...");
+            window.location.reload();
+            return;
+        }
+        setChallengeInfo(`Too many verification attempts. Try again in ${formatDuration(remaining)}.`);
+    };
+
+    render();
+    if (remaining <= 0){
+        return;
+    }
+
+    const interval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0){
+            clearInterval(interval);
+        }
+        render();
+    }, 1000);
+}

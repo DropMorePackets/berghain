@@ -65,5 +65,10 @@ The example HAProxy frontend applies two admission controls before it invokes Be
 These values are examples rather than universal production defaults. Tune them for the expected
 traffic profile and capacity of the protected service.
 
+The example also tracks challenge submissions in a separate one-minute window. More than ten
+submissions sets a flat ten-minute ban in HAProxy. Banned browser requests receive the normal
+challenge shell with HTTP `429`; the shell displays the remaining duration and reloads when it
+expires. This local example does not implement escalating ban durations.
+
 ## Attributions
 Thanks to [@NullDev](https://github.com/NullDev) and [@arellak](https://github.com/arellak), as they did most of the frontend work.
