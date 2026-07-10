@@ -35,6 +35,19 @@ For Debian / Ubuntu: apt install npm
 
 For production use, generate a random `secret` to place in the Berghain configuration file using `openssl rand -base64 32`.
 
+### Proof-of-work difficulty
+
+Each `pow` level can set `difficulty` to the required number of leading zero bits:
+
+```yaml
+levels:
+  - duration: 30m
+    type: pow
+    difficulty: 20
+```
+
+The default is `16`; explicit values must be between `1` and `255`. Higher values increase browser work exponentially, so raise the value carefully.
+
 ## Running with Docker
 
 To run the project using Docker, follow these steps:

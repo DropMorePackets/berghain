@@ -13,6 +13,11 @@ type LevelConfig struct {
 	Countdown int
 	Duration  time.Duration
 	Type      ValidationType
+
+	// Difficulty is the number of leading zero bits required for POW. A zero
+	// value uses DefaultPOWDifficulty; other values must be within the documented
+	// MinPOWDifficulty..MaxPOWDifficulty range.
+	Difficulty int
 }
 
 type Berghain struct {

@@ -51,9 +51,10 @@ func (fc FrontendConfig) AsBerghain(s []byte) *berghain.Berghain {
 }
 
 type LevelConfig struct {
-	Countdown *int          `yaml:"countdown"`
-	Duration  time.Duration `yaml:"duration"`
-	Type      string        `yaml:"type"`
+	Countdown  *int          `yaml:"countdown"`
+	Duration   time.Duration `yaml:"duration"`
+	Type       string        `yaml:"type"`
+	Difficulty *int          `yaml:"difficulty"`
 }
 
 func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
@@ -70,6 +71,13 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 		Fatal("countdown too high, cannot proceed", "countdown_have", *c.Countdown, "countdown_max", 9)
 	} else {
 		lc.Countdown = *c.Countdown
+	}
+
+	if c.Difficulty != nil {
+		if err := berghain.ValidatePOWDifficulty(*c.Difficulty); err != nil {
+			Fatal("invalid POW difficulty, cannot proceed", "difficulty", *c.Difficulty, "error", err)
+		}
+		lc.Difficulty = *c.Difficulty
 	}
 
 	switch c.Type {

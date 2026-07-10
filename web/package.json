@@ -11,6 +11,7 @@
     "build:native-crypto": "vite build --mode native-crypto",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "test": "node --test",
     "preview": "vite preview"
   },
   "devDependencies": {

@@ -34,19 +34,27 @@ const (
 	validatorPOWRandom            = "0000000000000000"
 	validatorPOWHash              = "0000000000000000000000000000000000000000000000000000000000000000"
 	validatorPOWMinSolutionLength = len(validatorPOWRandom + "-" + validatorPOWHash + "-0")
+
+	DefaultPOWDifficulty = 16
+	MinPOWDifficulty     = 1
+	MaxPOWDifficulty     = 255
 )
 
+const hexdigits = "0123456789abcdef"
+
 var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
-	Countdown int    `json:"c"`
-	Type      int    `json:"t"`
-	Random    string `json:"r"`
-	Hash      string `json:"s"`
+	Countdown  int    `json:"c"`
+	Type       int    `json:"t"`
+	Difficulty string `json:"d"`
+	Random     string `json:"r"`
+	Hash       string `json:"s"`
 }{
 	// Only strings have to be set, as the default is zero for ints.
 	// We do set the Type here because it is static anyway...
-	Type:   1,
-	Random: "0000000000000000",
-	Hash:   "0000000000000000000000000000000000000000000000000000000000000000",
+	Type:       1,
+	Difficulty: "00",
+	Random:     validatorPOWRandom,
+	Hash:       validatorPOWHash,
 })
 
 // This prevents invalid template strings by validatoring them on start
@@ -63,6 +71,10 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	defer b.releaseHMAC(h)
 
 	lc := b.LevelConfig(req.Identifier.Level)
+	difficulty, err := effectivePOWDifficulty(lc.Difficulty)
+	if err != nil {
+		return err
+	}
 
 	copy(resp.Body.WriteBytes(), validatorPOWChallengeTemplate)
 
@@ -70,7 +82,11 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	// the following conversion is faster than sprintf but also way uglier, I am sorry.
 	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
 	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
-	resp.Body.AdvanceW(len(`,"t":1,"r":"`))
+	resp.Body.AdvanceW(len(`,"t":1,"d":"`))
+	difficultyArea := resp.Body.WriteNBytes(2)
+	difficultyArea[0] = hexdigits[difficulty>>4]
+	difficultyArea[1] = hexdigits[difficulty&0x0f]
+	resp.Body.AdvanceW(len(`","r":"`))
 	timestampArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
 	resp.Body.AdvanceW(len(`","s":"`))
 	hexArea := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
@@ -94,8 +110,12 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 }
 
 func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
-	// req.Body should be at least validatorPOWMinSolutionLength
-	if len(req.Body) <= validatorPOWMinSolutionLength {
+	difficulty, err := effectivePOWDifficulty(b.LevelConfig(req.Identifier.Level).Difficulty)
+	if err != nil {
+		return err
+	}
+
+	if len(req.Body) < validatorPOWMinSolutionLength {
 		// invalid solution data
 		return ErrInvalidLength
 	}
@@ -142,14 +162,51 @@ func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorR
 	defer releaseSHA256(sha)
 
 	sha.Write(timestampArea)
+	sha.Write(sumArea)
 	sha.Write(solArea)
 	sum := sha.Sum(nil)
 
-	if !bytes.HasPrefix(sum, []byte{0x00, 0x00}) {
+	if !hasLeadingZeroBits(sum, int(difficulty)) {
 		return errInvalidSolution
 	}
 
 	return nil
+}
+
+// ValidatePOWDifficulty checks an explicit configured difficulty. The zero
+// value is reserved for LevelConfig's backward-compatible default and is
+// normalized by effectivePOWDifficulty.
+func ValidatePOWDifficulty(difficulty int) error {
+	if difficulty < MinPOWDifficulty || difficulty > MaxPOWDifficulty {
+		return fmt.Errorf("difficulty must be between %d and %d", MinPOWDifficulty, MaxPOWDifficulty)
+	}
+	return nil
+}
+
+func effectivePOWDifficulty(difficulty int) (uint8, error) {
+	if difficulty == 0 {
+		return DefaultPOWDifficulty, nil
+	}
+	if err := ValidatePOWDifficulty(difficulty); err != nil {
+		return 0, err
+	}
+	return uint8(difficulty), nil
+}
+
+func hasLeadingZeroBits(b []byte, bits int) bool {
+	if bits < 0 || bits > len(b)*8 {
+		return false
+	}
+
+	wholeBytes := bits / 8
+	for i := 0; i < wholeBytes; i++ {
+		if b[i] != 0 {
+			return false
+		}
+	}
+
+	remainingBits := bits % 8
+	return remainingBits == 0 || b[wholeBytes]>>(8-remainingBits) == 0
 }
 
 var errInvalidSolution = fmt.Errorf("invalid solution")
