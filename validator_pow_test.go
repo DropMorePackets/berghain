@@ -33,7 +33,7 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if p.T != 1 {
+	if p.T != 1 && p.T != 2 {
 		return nil, fmt.Errorf("invalid challenge type: %d", p.T)
 	}
 

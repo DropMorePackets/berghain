@@ -22,6 +22,6 @@ frontend:
         # Leading zero bits required from the proof. Default: 16; range: 1-255.
         difficulty: 16
       - duration: 10s
-        type: pow
+        type: pow-worker
         countdown: 0
         difficulty: 22

@@ -37,7 +37,7 @@ For production use, generate a random `secret` to place in the Berghain configur
 
 ### Proof-of-work difficulty
 
-Each `pow` level can set `difficulty` to the required number of leading zero bits:
+Each `pow` or `pow-worker` level can set `difficulty` to the required number of leading zero bits:
 
 ```yaml
 levels:
@@ -47,6 +47,10 @@ levels:
 ```
 
 The default is `16`; explicit values must be between `1` and `255`. Higher values increase browser work exponentially, so raise the value carefully.
+
+`pow` solves on the main browser thread. `pow-worker` requests the same proof from an inline Web Worker, keeping the
+page responsive and requiring Worker support. The proof is identical on the wire; the server validates it but cannot
+attest that a modified client actually used a Worker.
 
 ## Running with Docker
 

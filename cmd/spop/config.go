@@ -85,6 +85,8 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 		lc.Type = berghain.ValidationTypeNone
 	case "pow":
 		lc.Type = berghain.ValidationTypePOW
+	case "pow-worker":
+		lc.Type = berghain.ValidationTypePOWWorker
 	default:
 		Fatal("unknown validation type", "validator", c.Type)
 	}

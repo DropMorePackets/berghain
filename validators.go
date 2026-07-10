@@ -15,6 +15,7 @@ const (
 	_ ValidationType = iota
 	ValidationTypeNone
 	ValidationTypePOW
+	ValidationTypePOWWorker
 )
 
 type ValidatorResponse struct {
@@ -70,6 +71,8 @@ func (v ValidationType) RunValidator(b *Berghain, req *ValidatorRequest, resp *V
 		return validatorNone(b, req, resp)
 	case ValidationTypePOW:
 		return validatorPOW(b, req, resp)
+	case ValidationTypePOWWorker:
+		return validatorPOWWorker(b, req, resp)
 	default:
 		return errors.New("unknown validation type")
 	}

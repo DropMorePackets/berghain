@@ -78,3 +78,23 @@ export function hasLeadingZeroBits(bytes, bits){
     const remainingBits = bits % 8;
     return remainingBits === 0 || (bytes[wholeBytes] >> (8 - remainingBits)) === 0;
 }
+
+/**
+ * Find a nonce satisfying a challenge. This is shared by the main-thread and
+ * Worker solvers so both produce the exact wire proof the server validates.
+ *
+ * @param {{d?: string, r: string, s: string}} challenge
+ * @return {Promise<number>}
+ */
+export async function solvePOWNonce(challenge){
+    const difficulty = parsePOWDifficulty(challenge.d);
+
+    for (let nonce = 0; nonce <= Number.MAX_SAFE_INTEGER; nonce++){
+        const hash = await doHash(powInput(challenge, nonce));
+        if (hasLeadingZeroBits(hash, difficulty)){
+            return nonce;
+        }
+    }
+
+    throw new Error("POW nonce space exhausted");
+}

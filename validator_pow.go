@@ -28,6 +28,7 @@ func releaseSHA256(h hash.Hash) {
 }
 
 type powValidator struct {
+	template string
 }
 
 const (
@@ -42,20 +43,22 @@ const (
 
 const hexdigits = "0123456789abcdef"
 
-var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
-	Countdown  int    `json:"c"`
-	Type       int    `json:"t"`
-	Difficulty string `json:"d"`
-	Random     string `json:"r"`
-	Hash       string `json:"s"`
-}{
-	// Only strings have to be set, as the default is zero for ints.
-	// We do set the Type here because it is static anyway...
-	Type:       1,
-	Difficulty: "00",
-	Random:     validatorPOWRandom,
-	Hash:       validatorPOWHash,
-})
+func powChallengeTemplate(challengeType int) string {
+	return mustJSONEncodeString(struct {
+		Countdown  int    `json:"c"`
+		Type       int    `json:"t"`
+		Difficulty string `json:"d"`
+		Random     string `json:"r"`
+		Hash       string `json:"s"`
+	}{
+		Type:       challengeType,
+		Difficulty: "00",
+		Random:     validatorPOWRandom,
+		Hash:       validatorPOWHash,
+	})
+}
+
+var validatorPOWChallengeTemplate = powChallengeTemplate(1)
 
 // This prevents invalid template strings by validatoring them on start
 var _ = func() bool {
@@ -66,7 +69,7 @@ var _ = func() bool {
 	return true
 }()
 
-func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
+func (p powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
 	h := b.acquireHMAC()
 	defer b.releaseHMAC(h)
 
@@ -76,7 +79,7 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 		return err
 	}
 
-	copy(resp.Body.WriteBytes(), validatorPOWChallengeTemplate)
+	copy(resp.Body.WriteBytes(), p.template)
 
 	resp.Body.AdvanceW(len(`{"c":`))
 	// the following conversion is faster than sprintf but also way uglier, I am sorry.
@@ -212,8 +215,10 @@ func hasLeadingZeroBits(b []byte, bits int) bool {
 var errInvalidSolution = fmt.Errorf("invalid solution")
 
 func validatorPOW(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
-	var p powValidator
+	return powValidator{template: validatorPOWChallengeTemplate}.run(b, req, resp)
+}
 
+func (p powValidator) run(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
 	switch req.Method {
 	case http.MethodPost:
 		if err := p.isValid(b, req, resp); err != nil {
