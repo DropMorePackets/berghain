@@ -24,13 +24,16 @@ export async function doChallenge(){
     loader.start();
 
     let countdown = 3;
+    let challenge;
     let result;
     try {
         loader.setChallengeInfo("Fetching challenge...");
 
-        const challenge = await getChallenge();
+        challenge = await getChallenge();
         const {t} = challenge;
         countdown = challenge.c;
+
+        /* @berghain:inline challenge-start */
 
         const [name, solver] = getChallengeSolver(t);
 
@@ -42,6 +45,13 @@ export async function doChallenge(){
     }
     catch (e){
         result = e.toString();
+    }
+
+    if (result){
+        /* @berghain:inline failure */
+    }
+    else {
+        /* @berghain:inline success */
     }
 
     loader.stop(countdown, !!result);
