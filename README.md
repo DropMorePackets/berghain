@@ -10,6 +10,9 @@ With Berghain in charge, you can be confident that your backend is reserved for 
 out any uninvited guests. It's like the bouncer of the web world, ensuring that your resources are reserved for the
 browsers that really know how to dance!
 
+> Seeing a "Request on Hold" screen, or want to understand what visitors experience? See the
+> [help page](https://dropmorepackets.github.io/berghain/) for troubleshooting, browser compatibility and privacy details.
+
 ## Supported CAPTCHAs
 - None (Simple JS execute)
 - POW
