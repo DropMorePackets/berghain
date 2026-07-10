@@ -57,11 +57,82 @@ func releaseHostBuf(b *buffer.SliceBuffer) {
 	hostBufPool.Put(b)
 }
 
+// hostWithoutPort strips a port from an unambiguous Host authority. Bracketed
+// IPv6 literals retain their brackets, while unbracketed values containing
+// multiple colons and malformed ports are left untouched.
+func hostWithoutPort(host []byte) []byte {
+	if len(host) == 0 {
+		return host
+	}
+
+	if host[0] == '[' {
+		closingBracket := bytes.IndexByte(host, ']')
+		if closingBracket < 0 || closingBracket == len(host)-1 {
+			return host
+		}
+		if host[closingBracket+1] != ':' || !validPort(host[closingBracket+2:]) {
+			return host
+		}
+		return host[:closingBracket+1]
+	}
+
+	if bytes.Count(host, []byte{':'}) != 1 {
+		return host
+	}
+	separator := bytes.IndexByte(host, ':')
+	if separator == 0 || !validPort(host[separator+1:]) {
+		return host
+	}
+	return host[:separator]
+}
+
+func validPort(port []byte) bool {
+	if len(port) == 0 {
+		return false
+	}
+
+	value := 0
+	for _, digit := range port {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+		value = value*10 + int(digit-'0')
+		if value > 65535 {
+			return false
+		}
+	}
+	return true
+}
+
+// URI hosts are case-insensitive. Canonicalizing ASCII case keeps challenge
+// identities stable if a client changes the case of a DNS name or IP literal.
+func normalizeHost(host []byte) []byte {
+	host = hostWithoutPort(host)
+	for i, c := range host {
+		if c < 'A' || c > 'Z' {
+			continue
+		}
+		normalized := bytes.Clone(host)
+		for j := i; j < len(normalized); j++ {
+			if normalized[j] >= 'A' && normalized[j] <= 'Z' {
+				normalized[j] += 'a' - 'A'
+			}
+		}
+		return normalized
+	}
+	return host
+}
+
 func getTrustedDomain(host []byte, td []string) []byte {
 	h := string(host)
 	for _, d := range td {
-		if strings.HasSuffix(h, d) {
-			return []byte(d)
+		if len(d) == 0 || len(h) < len(d) {
+			continue
+		}
+
+		start := len(h) - len(d)
+		if strings.EqualFold(h[start:], d) && (start == 0 || h[start-1] == '.') {
+			return host[start:]
 		}
 	}
 
@@ -70,7 +141,7 @@ func getTrustedDomain(host []byte, td []string) []byte {
 
 func getDomainAttr(host []byte) string {
 	if bytes.Contains(host, []byte(".")) {
-		return "domain=" + string(host) + ";" 
+		return "domain=" + string(host) + ";"
 	} else {
 		return ""
 	}
@@ -107,7 +178,7 @@ func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWri
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {
 		return
 	}
-	host := k.ValueBytes()
+	host := normalizeHost(k.ValueBytes())
 	ctx = context.WithValue(ctx, "host", string(host))
 	if len(host) > hostBufferLength {
 		slog.ErrorContext(ctx, "host length too big")
@@ -162,15 +233,17 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 	addr, ok := netip.AddrFromSlice(k.ValueBytes())
 	if !ok {
 		slog.ErrorContext(ctx, "cant read netip.Address from message")
+		return
 	}
 	ri.SrcAddr = addr
 
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {
 		return
 	}
-	host := k.ValueBytes()
+	host := normalizeHost(k.ValueBytes())
 	if len(host) > hostBufferLength {
 		slog.ErrorContext(ctx, "host length too big")
+		return
 	}
 
 	td := getTrustedDomain(host, f.bh.TrustedDomains)
