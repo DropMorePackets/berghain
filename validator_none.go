@@ -10,6 +10,10 @@ var validatorNoneResponse = mustJSONEncodeString(struct {
 })
 
 func validatorNone(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
+	if !ValidSupportID(req.SupportID) {
+		return ErrInvalidLength
+	}
+
 	lc := b.LevelConfig(req.Identifier.Level)
 
 	copy(resp.Body.WriteBytes(), validatorNoneResponse)
@@ -17,7 +21,8 @@ func validatorNone(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) 
 	// the following conversion is faster than sprintf but also way uglier, I am sorry.
 	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
 	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
-	resp.Body.AdvanceW(len(`,"t":0}`))
+	resp.Body.AdvanceW(len(`,"t":0`))
+	appendSupportID(resp.Body, req.SupportID)
 
 	return req.Identifier.ToCookie(b, resp.Token)
 }

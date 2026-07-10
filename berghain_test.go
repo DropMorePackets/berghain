@@ -33,6 +33,7 @@ func TestBerghain(t *testing.T) {
 		Level:   1,
 	}
 	req.Method = "GET"
+	req.SupportID = []byte("bh@123e4567-e89b-12d3-a456-426614174000")
 
 	resp := AcquireValidatorResponse()
 	err := bh.LevelConfig(req.Identifier.Level).Type.RunValidator(bh, req, resp)

@@ -49,6 +49,7 @@ type ValidatorRequest struct {
 	Method     string
 	Body       []byte
 	Identifier *RequestIdentifier
+	SupportID  []byte
 }
 
 var validatorRequestPool = sync.Pool{
@@ -65,7 +66,14 @@ func ReleaseValidatorRequest(v *ValidatorRequest) {
 	v.Method = ""
 	v.Body = nil
 	v.Identifier = nil
+	v.SupportID = nil
 	validatorRequestPool.Put(v)
+}
+
+func appendSupportID(body *buffer.SliceBuffer, id []byte) {
+	copy(body.WriteNBytes(len(`,"i":"`)), []byte(`,"i":"`))
+	copy(body.WriteNBytes(len(id)), id)
+	copy(body.WriteNBytes(len(`"}`)), []byte(`"}`))
 }
 
 func (v ValidationType) RunValidator(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
