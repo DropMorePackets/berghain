@@ -11,7 +11,6 @@ package peerserver
 
 import (
 	"bufio"
-	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"net"
@@ -319,14 +318,8 @@ func (c *conn) sendDefinition(t *table) error {
 		byte(peers.StickTableUpdateMessageTypeStickTableDefinition), buf[:n])
 }
 
-// sendEntry marshals an EntryUpdate (update-id + key + gpt0) by hand, avoiding
-// haproxy-go's EntryUpdate.Marshal which mis-encodes the data section.
+// sendEntry marshals and sends an entry update (update-id + key + gpt0).
 func (c *conn) sendEntry(t *table, a netip.Addr, updateID uint32, value uint32) error {
-	buf := make([]byte, 64)
-	off := 0
-	binary.BigEndian.PutUint32(buf[off:], updateID)
-	off += 4
-
 	var key sticktable.MapKey
 	if t.keyType == sticktable.KeyTypeIPv4Address {
 		k := sticktable.IPv4AddressKey(a)
@@ -335,19 +328,21 @@ func (c *conn) sendEntry(t *table, a netip.Addr, updateID uint32, value uint32) 
 		k := sticktable.IPv6AddressKey(a)
 		key = &k
 	}
-	kn, err := key.Marshal(buf[off:], t.keyLen)
-	if err != nil {
-		return err
-	}
-	off += kn
 
 	d := sticktable.UnsignedIntegerData(value)
-	dn, err := d.Marshal(buf[off:])
+	e := sticktable.EntryUpdate{
+		StickTable:        t.def,
+		WithLocalUpdateID: true,
+		LocalUpdateID:     updateID,
+		Key:               key,
+		Data:              []sticktable.MapData{&d},
+	}
+
+	buf := make([]byte, 64)
+	n, err := e.Marshal(buf)
 	if err != nil {
 		return err
 	}
-	off += dn
-
 	return c.sendMessage(peers.MessageClassStickTableUpdates,
-		byte(peers.StickTableUpdateMessageTypeEntryUpdate), buf[:off])
+		byte(peers.StickTableUpdateMessageTypeEntryUpdate), buf[:n])
 }
