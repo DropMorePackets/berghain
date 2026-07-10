@@ -523,7 +523,7 @@ func main() {
 		cloudActionName string
 		interval        time.Duration
 	)
-	flag.StringVar(&mapFile, "map-file", "examples/haproxy/maps/reputation.map", "persistent HAProxy reputation map")
+	flag.StringVar(&mapFile, "map-file", "examples/haproxy/state/reputation.map", "persistent HAProxy reputation map")
 	flag.StringVar(&runtimeSocket, "runtime-socket", "", "optional HAProxy Runtime API UNIX socket")
 	flag.StringVar(&runtimeMap, "runtime-map", "", "map path as registered in HAProxy (defaults to -map-file)")
 	flag.StringVar(&banlist, "banlist", "", "optional local file of IPs to block")

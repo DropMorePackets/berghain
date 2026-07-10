@@ -63,11 +63,11 @@ traffic through Cloudflare.
 
 ```sh
 # Write a persistent map file once.
-go run ./cmd/feedupdater -map-file examples/haproxy/maps/reputation.map
+go run ./cmd/feedupdater -map-file examples/haproxy/state/reputation.map
 
 # Also update the same map atomically in a running HAProxy process.
 go run ./cmd/feedupdater \
-  -map-file examples/haproxy/maps/reputation.map \
+  -map-file examples/haproxy/state/reputation.map \
   -runtime-socket /tmp/haproxy-admin.sock \
   -interval 6h
 ```
@@ -78,6 +78,13 @@ If any enabled remote source fails, is oversized, is empty, or contains malforme
 is rejected before the existing map is replaced. Live transactions require HAProxy 2.4 or newer;
 when `-runtime-map` is set, its value must exactly match the map identifier in HAProxy's loaded
 configuration.
+
+The example HAProxy policy interprets map action `1` as a silent drop and action `3` as challenge
+level 3. It refreshes the map every six hours in the container. Add lower-case, exact hostnames to
+`examples/haproxy/maps/bypass-hosts.lst` only when a hostname must bypass both reputation and rate
+policies. Ports are removed before matching; hostname suffixes such as `.onion` and `.i2p` are never
+trusted implicitly. Docker Compose persists the generated reputation state in its
+`reputation-data` volume and mounts the operator-edited bypass list read-only.
 
 ## Attributions
 Thanks to [@NullDev](https://github.com/NullDev) and [@arellak](https://github.com/arellak), as they did most of the frontend work.

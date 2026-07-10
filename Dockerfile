@@ -12,14 +12,21 @@ RUN npm run build
 FROM golang:1.24 AS backend-builder
 WORKDIR /app
 COPY . .
-RUN go build -o berghain ./cmd/spop
+RUN go build -o berghain ./cmd/spop \
+    && go build -o feedupdater ./cmd/feedupdater
 
 # Stage 3: Final image
 FROM haproxy:lts-bookworm
 WORKDIR /app
 COPY --from=frontend-builder /app/web/dist ./web/dist
 COPY --from=backend-builder /app/berghain ./berghain
+COPY --from=backend-builder /app/feedupdater ./feedupdater
+RUN mkdir -p ./examples/haproxy/state
+COPY examples/haproxy/berghain.cfg ./examples/haproxy/berghain.cfg
+COPY examples/haproxy/entrypoint.sh ./examples/haproxy/entrypoint.sh
+COPY examples/haproxy/maps ./examples/haproxy/maps
+COPY --chown=haproxy:haproxy examples/haproxy/state/reputation.map ./examples/haproxy/state/reputation.map
 COPY examples/haproxy/haproxy.cfg ./haproxy.cfg
 COPY cmd/spop/config.yaml ./config.yaml
 
-CMD ["sh", "-c", "haproxy -f haproxy.cfg & ./berghain -config config.yaml"]
+CMD ["sh", "examples/haproxy/entrypoint.sh"]
