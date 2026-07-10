@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Berghain">
+  <title>Berghain</title>
+  <rect width="24" height="24" rx="5" fill="#16181d"/>
+  <path fill="#e8b06a" d="M12 3 L18.6 5.4 V11.2 C18.6 15.5 12 19.8 12 19.8 C12 19.8 5.4 15.5 5.4 11.2 V5.4 Z"/>
+  <path fill="none" stroke="#16181d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M8.9 11.7 L11.1 13.9 L15.3 9.1"/>
+</svg>
