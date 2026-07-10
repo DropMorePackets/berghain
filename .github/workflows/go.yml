@@ -12,26 +12,27 @@ jobs:
   lint:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version-file: go.mod
 
       - uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false
+          version: v0.6.1
 
   build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version-file: go.mod
 
       - name: Build
         run: go build -v ./...
@@ -39,12 +40,12 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version-file: go.mod
 
       - name: Test
         run: go test -v ./...
@@ -52,14 +53,28 @@ jobs:
   e2e:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.26'
+          cache-dependency-path: |
+            go.sum
+            test/e2e/go.sum
 
-      - name: setup environment
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Set up Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
+
+      - name: Install HAProxy
         run: |
           sudo apt-get install -y software-properties-common
           sudo add-apt-repository -y ppa:vbernat/haproxy-3.0
@@ -67,5 +82,16 @@ jobs:
           sudo apt-get install -y haproxy
           haproxy -vv
 
-      - name: Test E2E
-        run: go test -v ./... --tags=e2e
+      - name: Build web bundles
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check E2E HAProxy configuration
+        run: haproxy -c -f test/e2e/haproxy.cfg
+
+      - name: Test browser challenge flow
+        env:
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: test/e2e/run.sh
