@@ -64,6 +64,18 @@ For Debian / Ubuntu: apt install npm
 
 For production use, generate a random `secret` to place in the Berghain configuration file using `openssl rand -base64 32`.
 
+### Optional User-Agent policy
+
+[`examples/haproxy/haproxy-ua-policy.cfg`](examples/haproxy/haproxy-ua-policy.cfg) is an alternative
+HAProxy example that challenges known AI crawlers and browser-like clients, allows selected tools and public API/feed
+paths, and tarpits selected scraper libraries. The default example remains User-Agent neutral.
+
+Customize the maps under [`examples/haproxy/maps/`](examples/haproxy/maps/) and the `public_endpoint` ACLs before use.
+Map keys are lowercase literal substrings without whitespace. User-Agent headers are trivial to spoof, so this policy is
+traffic shaping only; it must not protect authenticated or otherwise sensitive endpoints.
+Set `BERGHAIN_SOURCE_LOG_KEY` to an independent, high-entropy secret so the alternative config's access-log source
+pseudonyms do not use the local-development fallback.
+
 ## Running with Docker
 
 To run the project using Docker, follow these steps:
