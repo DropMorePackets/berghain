@@ -4,6 +4,8 @@ import {doChallenge} from "./challange/challanger";
 
 (() => {
     window.addEventListener("DOMContentLoaded", async() => {
+        /* @berghain:inline init */
+
         if (!navigator.cookieEnabled){
             const noCookie = document.getElementById("no-cookie");
             noCookie.style.display = "block";
