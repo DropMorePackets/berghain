@@ -7,8 +7,10 @@ import {doChallenge} from "./challange/challanger";
         /* @berghain:inline init */
 
         if (!navigator.cookieEnabled){
-            const noCookie = document.getElementById("no-cookie");
-            noCookie.style.display = "block";
+            const cookieWarning = document.getElementById("cookie-warning");
+            if (cookieWarning){
+                cookieWarning.style.display = "block";
+            }
             return;
         }
 

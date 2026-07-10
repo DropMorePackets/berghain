@@ -14,7 +14,39 @@ export function start(){
 
 export function showError(error){
     const errors = /** @type {HTMLDivElement} */ (document.querySelector(".error-container"));
-    errors.insertAdjacentHTML("beforeend", `<code>${error}</code>`);
+    if (!errors){
+        return;
+    }
+    const message = document.createElement("code");
+    message.textContent = error;
+    errors.append(message);
+}
+
+/**
+ * Show actionable advice for capabilities required by the issued challenge.
+ *
+ * @param {{name: string, message: string, fix: string}[]} missing
+ */
+export function showCapabilities(missing){
+    const container = document.getElementById("capability-errors");
+    if (!container){
+        return;
+    }
+
+    const summary = document.createElement("p");
+    summary.textContent = "This browser is missing features required by the current challenge:";
+
+    const list = document.createElement("ul");
+    for (const capability of missing){
+        const item = document.createElement("li");
+        const name = document.createElement("strong");
+        name.textContent = capability.name;
+        item.append(name, `: ${capability.message} ${capability.fix}`);
+        list.append(item);
+    }
+
+    container.replaceChildren(summary, list);
+    container.style.display = "block";
 }
 
 export function setChallengeInfo(text){

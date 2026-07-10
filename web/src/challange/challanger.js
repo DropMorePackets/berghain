@@ -1,3 +1,4 @@
+import {detectMissingCapabilities} from "./capabilities";
 import {getChallengeSolver} from "./challanges";
 import * as loader from "./loader.js";
 
@@ -32,6 +33,12 @@ export async function doChallenge(){
         challenge = await getChallenge();
         const {t} = challenge;
         countdown = challenge.c;
+
+        const missing = detectMissingCapabilities(t);
+        if (missing.length){
+            loader.showCapabilities(missing);
+            throw new Error(`Required browser feature unavailable: ${missing.map(({name}) => name).join(", ")}`);
+        }
 
         /* @berghain:inline challenge-start */
 
