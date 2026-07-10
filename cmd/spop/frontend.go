@@ -122,7 +122,7 @@ func (f *frontend) HandleSPOEValidate(ctx context.Context, w *encoding.ActionWri
 		slog.ErrorContext(ctx, "cant read netip.Address from message")
 		return
 	}
-	ctx = context.WithValue(ctx, "src", addr.String())
+	ctx = context.WithValue(ctx, "src", f.bh.SourceLogID(addr))
 	ri.SrcAddr = addr
 
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {
@@ -171,6 +171,7 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 		return
 	}
 	ri.Level = uint8(k.ValueInt())
+	ctx = context.WithValue(ctx, "level", int(ri.Level))
 	if ri.Level == 0 {
 		// berghain is disabled, just exit early and ignore everything...
 		return
@@ -183,7 +184,9 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 	addr, ok := netip.AddrFromSlice(k.ValueBytes())
 	if !ok {
 		slog.ErrorContext(ctx, "cant read netip.Address from message")
+		return
 	}
+	ctx = context.WithValue(ctx, "src", f.bh.SourceLogID(addr))
 	ri.SrcAddr = addr
 
 	if err := readExpectedKVEntry(ctx, m, k, "host"); err != nil {

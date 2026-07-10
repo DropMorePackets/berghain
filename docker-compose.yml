@@ -3,6 +3,8 @@ version: '3.8'
 services:
   berghain-haproxy:
     build: .
+    environment:
+      BERGHAIN_SOURCE_LOG_KEY: ${BERGHAIN_SOURCE_LOG_KEY:-berghain-development-source-log-key}
     ports:
       - "8080:8080" # Expose the backend service
     volumes:

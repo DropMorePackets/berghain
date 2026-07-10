@@ -35,6 +35,18 @@ For Debian / Ubuntu: apt install npm
 
 For production use, generate a random `secret` to place in the Berghain configuration file using `openssl rand -base64 32`.
 
+## Log privacy
+
+The Go SPOE agent writes a 128-bit HMAC source identifier instead of a plaintext client IP address.
+It is stable until the configured `secret` changes and uses a key derived separately from cookie
+authentication. The example HAProxy access log likewise replaces `%ci` with a 256-bit SHA-2
+pseudonym keyed by `BERGHAIN_SOURCE_LOG_KEY`. Set that environment variable to an independent,
+high-entropy production secret; the checked-in value is only a local-development fallback.
+
+These identifiers are pseudonymous personal data, not anonymous values. An operator with the
+relevant secret can test candidate addresses, particularly across the IPv4 address space.
+Hostnames, request paths, and client-provided support IDs can also appear in logs.
+
 ## Running with Docker
 
 To run the project using Docker, follow these steps:

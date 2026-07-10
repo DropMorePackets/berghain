@@ -108,16 +108,18 @@
           change, the cookie no longer validates &mdash; and that is the whole mechanism.</p>
       </div>
       <div class="card">
-        <h3>No server-side store</h3>
-        <p>Because verification is stateless, there is no database of visitors, sessions or
-          fingerprints to query, leak or subpoena. The server only re-computes the signature and
-          compares it. Nothing about your visit is retained after the cookie expires.</p>
+        <h3>No verification database</h3>
+        <p>Verification is stateless: there is no Berghain database of visitors, sessions or
+          fingerprints. The server only re-computes the cookie signature and compares it. Normal
+          proxy and application logs may still be retained according to the site operator&#39;s
+          logging policy.</p>
       </div>
       <div class="card">
         <h3>Your IP is bound, not stored</h3>
         <p>Your IP address is mixed into the cookie&#39;s signature so a clearance cannot be copied to
-          another machine. It is <strong>bound cryptographically, not saved in plaintext</strong> as a
-          record of where you were.</p>
+          another machine. The Berghain agent and example proxy log keyed pseudonymous identifiers
+          instead of the plaintext address. This supports log correlation but is not anonymization;
+          other infrastructure may have its own access logs.</p>
       </div>
       <div class="card">
         <h3>No third-party CDN</h3>
