@@ -54,5 +54,30 @@ To run the project using Docker, follow these steps:
 
 Make sure to have Docker and Docker Compose installed on your system before running these commands.
 
+## Reputation feed updater
+
+`cmd/feedupdater` builds one HAProxy `map_ip` reputation map from validated public feeds and an
+optional local banlist. Tor exits receive the challenge action by default. Cloudflare ranges are
+disabled by default because blocking them would break deployments that intentionally receive
+traffic through Cloudflare.
+
+```sh
+# Write a persistent map file once.
+go run ./cmd/feedupdater -map-file examples/haproxy/maps/reputation.map
+
+# Also update the same map atomically in a running HAProxy process.
+go run ./cmd/feedupdater \
+  -map-file examples/haproxy/maps/reputation.map \
+  -runtime-socket /tmp/haproxy-admin.sock \
+  -interval 6h
+```
+
+Set `-cloudflare-action=block` only when that policy is intentional. `-banlist` accepts a local
+file containing one IP address per line; local bans override a challenge action for the same IP.
+If any enabled remote source fails, is oversized, is empty, or contains malformed data, the update
+is rejected before the existing map is replaced. Live transactions require HAProxy 2.4 or newer;
+when `-runtime-map` is set, its value must exactly match the map identifier in HAProxy's loaded
+configuration.
+
 ## Attributions
 Thanks to [@NullDev](https://github.com/NullDev) and [@arellak](https://github.com/arellak), as they did most of the frontend work.
