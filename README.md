@@ -54,5 +54,16 @@ To run the project using Docker, follow these steps:
 
 Make sure to have Docker and Docker Compose installed on your system before running these commands.
 
+## HAProxy request limits
+
+The example HAProxy frontend applies two admission controls before it invokes Berghain:
+
+- `rate-limit sessions` bounds newly accepted sessions across the frontend.
+- A one-second, per-source stick table returns `429 Too Many Requests` for bursts above the
+  example threshold. Challenge requests are excluded so a verification POST is not throttled.
+
+These values are examples rather than universal production defaults. Tune them for the expected
+traffic profile and capacity of the protected service.
+
 ## Attributions
 Thanks to [@NullDev](https://github.com/NullDev) and [@arellak](https://github.com/arellak), as they did most of the frontend work.
