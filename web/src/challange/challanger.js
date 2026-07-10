@@ -11,24 +11,26 @@ import * as loader from "./loader.js";
  * @return {Promise<object>}
  */
 async function getChallenge(){
-    const resp = await fetch("/cdn-cgi/challenge-platform/challenge");
-    return await resp.json();
+    const response = await fetch("/cdn-cgi/challenge-platform/challenge");
+    return response.json();
 }
 
 /**
  * Do challenge.
  *
- * @return {Promise<void>}
+ * @return {Promise<string|null>}
  */
 export async function doChallenge(){
     loader.start();
 
     let countdown = 3;
     let result;
+    let session = null;
     try {
         loader.setChallengeInfo("Fetching challenge...");
 
         const challenge = await getChallenge();
+        session = challenge.i ?? null;
         const {t} = challenge;
         countdown = challenge.c;
 
@@ -48,4 +50,5 @@ export async function doChallenge(){
     if (result){
         loader.showError(result);
     }
+    return session;
 }

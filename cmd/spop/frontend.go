@@ -40,6 +40,27 @@ func readExpectedKVEntry(ctx context.Context, m *encoding.Message, k *encoding.K
 	return nil
 }
 
+func addOptionalSessionToContext(ctx context.Context, m *encoding.Message, k *encoding.KVEntry) (context.Context, []byte) {
+	if !m.KV.Next(k) {
+		if err := m.KV.Error(); err != nil {
+			slog.ErrorContext(ctx, "error while reading optional session argument", "error", err)
+		}
+		return ctx, nil
+	}
+
+	if !k.NameEquals("session") {
+		slog.WarnContext(ctx, "ignoring unexpected optional SPOP argument", "have", k.NameBytes())
+		return ctx, nil
+	}
+
+	if id := k.ValueBytes(); berghain.ValidSupportID(id) {
+		return context.WithValue(ctx, "session", string(id)), id
+	}
+
+	slog.DebugContext(ctx, "ignoring invalid session id")
+	return ctx, nil
+}
+
 const hostBufferLength = 256
 
 var hostBufPool = sync.Pool{
@@ -70,7 +91,7 @@ func getTrustedDomain(host []byte, td []string) []byte {
 
 func getDomainAttr(host []byte) string {
 	if bytes.Contains(host, []byte(".")) {
-		return "domain=" + string(host) + ";" 
+		return "domain=" + string(host) + ";"
 	} else {
 		return ""
 	}
@@ -208,11 +229,15 @@ func (f *frontend) HandleSPOEChallenge(ctx context.Context, w *encoding.ActionWr
 		return
 	}
 	req.Body = k.ValueBytes()
+	ctx, req.SupportID = addOptionalSessionToContext(ctx, m, k)
 
 	resp := berghain.AcquireValidatorResponse()
 	defer berghain.ReleaseValidatorResponse(resp)
 
 	err := f.bh.LevelConfig(ri.Level).Type.RunValidator(f.bh, req, resp)
+	if berghain.ValidSupportID(req.SupportID) {
+		ctx = context.WithValue(ctx, "session", string(req.SupportID))
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "validator failed", "error", err)
 	}

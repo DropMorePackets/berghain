@@ -14,6 +14,7 @@ func (lh *logHandler) Handle(ctx context.Context, r slog.Record) error {
 	for _, k := range []string{
 		"handler",
 		"host",
+		"session",
 		"src",
 		"validator",
 	} {

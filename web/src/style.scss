@@ -34,6 +34,14 @@
     position: absolute;
 }
 
+.session-id {
+    display: block;
+    margin-top: .5em;
+    color: #707070;
+    font-family: monospace;
+    font-size: 80%;
+}
+
 code {
     padding: 16px;
     overflow: auto;

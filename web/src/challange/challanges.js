@@ -36,9 +36,7 @@ async function challengePOW(challenge){
     try {
         const response = await fetch("/cdn-cgi/challenge-platform/challenge", {
             body: challenge.r + "-" + challenge.s + "-" + i.toString(),
-            headers: {
-                "Content-Type": "text/plain",
-            },
+            headers: {"Content-Type": "text/plain"},
             method: "POST",
         });
         if (!response.ok){
