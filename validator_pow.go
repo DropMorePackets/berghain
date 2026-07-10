@@ -31,9 +31,11 @@ type powValidator struct {
 }
 
 const (
-	validatorPOWRandom            = "0000000000000000"
+	validatorPOWTimestamp         = "0000000000000000"
+	validatorPOWRandom            = validatorPOWTimestamp + "bh@00000000-0000-4000-8000-000000000000"
 	validatorPOWHash              = "0000000000000000000000000000000000000000000000000000000000000000"
 	validatorPOWMinSolutionLength = len(validatorPOWRandom + "-" + validatorPOWHash + "-0")
+	validatorPOWMaxSolutionLength = validatorPOWMinSolutionLength + 19
 )
 
 var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
@@ -45,7 +47,7 @@ var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
 	// Only strings have to be set, as the default is zero for ints.
 	// We do set the Type here because it is static anyway...
 	Type:   1,
-	Random: "0000000000000000",
+	Random: validatorPOWRandom,
 	Hash:   "0000000000000000000000000000000000000000000000000000000000000000",
 })
 
@@ -55,10 +57,17 @@ var _ = func() bool {
 	if len(validatorPOWHash) != hex.EncodedLen(h.Size()) {
 		panic("invalid pow hash length")
 	}
+	if !ValidSupportID([]byte(validatorPOWRandom[len(validatorPOWTimestamp):])) {
+		panic("invalid pow support ID placeholder")
+	}
 	return true
 }()
 
 func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
+	if !ValidSupportID(req.SupportID) {
+		return ErrInvalidLength
+	}
+
 	h := b.acquireHMAC()
 	defer b.releaseHMAC(h)
 
@@ -71,10 +80,13 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
 	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
 	resp.Body.AdvanceW(len(`,"t":1,"r":"`))
-	timestampArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
+	randomArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
+	timestampArea := randomArea[:len(validatorPOWTimestamp)]
+	copy(randomArea[len(validatorPOWTimestamp):], req.SupportID)
 	resp.Body.AdvanceW(len(`","s":"`))
 	hexArea := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
-	resp.Body.AdvanceW(len(`"}`))
+	resp.Body.AdvanceW(len(`"`))
+	appendSupportID(resp.Body, req.SupportID)
 
 	// we use the response body temporarily as a buffer
 	expireAt := tc.Now().Add(lc.Duration)
@@ -86,7 +98,7 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 
 	// Write identifier to hash to ensure uniqueness
 	req.Identifier.WriteTo(h)
-	h.Write(timestampArea)
+	h.Write(randomArea)
 
 	hex.Encode(hexArea, h.Sum(nil))
 
@@ -94,27 +106,33 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 }
 
 func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
-	// req.Body should be at least validatorPOWMinSolutionLength
-	if len(req.Body) <= validatorPOWMinSolutionLength {
-		// invalid solution data
+	req.SupportID = nil
+	if len(req.Body) < validatorPOWMinSolutionLength || len(req.Body) > validatorPOWMaxSolutionLength {
 		return ErrInvalidLength
 	}
 
 	body := buffer.NewSliceBufferWithSlice(req.Body)
-
-	timestampArea := body.ReadNBytes(len(validatorPOWRandom))
-	body.AdvanceR(1) // Skip padding character
+	randomArea := body.ReadNBytes(len(validatorPOWRandom))
+	if separator := body.ReadNBytes(1); len(separator) != 1 || separator[0] != '-' {
+		return ErrInvalidLength
+	}
 	sumArea := body.ReadNBytes(len(validatorPOWHash))
-	body.AdvanceR(1) // Skip padding character
+	if separator := body.ReadNBytes(1); len(separator) != 1 || separator[0] != '-' {
+		return ErrInvalidLength
+	}
 	solArea := body.ReadBytes()
+	for _, c := range solArea {
+		if c < '0' || c > '9' {
+			return ErrInvalidLength
+		}
+	}
 
 	h := b.acquireHMAC()
 	defer b.releaseHMAC(h)
 
 	// Write identifier to hash to ensure uniqueness
 	req.Identifier.WriteTo(h)
-
-	h.Write(timestampArea)
+	h.Write(randomArea)
 
 	// we use the response body temporarily as a buffer
 	defer resp.Body.Reset()
@@ -128,7 +146,14 @@ func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorR
 	}
 	resp.Body.Reset()
 
-	expirArea := resp.Body.WriteNBytes(hex.DecodedLen(len(validatorPOWRandom)))
+	supportID := randomArea[len(validatorPOWTimestamp):]
+	if !ValidSupportID(supportID) {
+		return ErrInvalidLength
+	}
+	req.SupportID = supportID
+	timestampArea := randomArea[:len(validatorPOWTimestamp)]
+
+	expirArea := resp.Body.WriteNBytes(hex.DecodedLen(len(validatorPOWTimestamp)))
 	if _, err := hex.Decode(expirArea, timestampArea); err != nil {
 		return err
 	}
@@ -141,7 +166,7 @@ func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorR
 	sha := acquireSHA256()
 	defer releaseSHA256(sha)
 
-	sha.Write(timestampArea)
+	sha.Write(randomArea)
 	sha.Write(solArea)
 	sum := sha.Sum(nil)
 

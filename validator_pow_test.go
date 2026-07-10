@@ -18,6 +18,7 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 		T int    `json:"t"`
 		R string `json:"r"`
 		S string `json:"s"`
+		I string `json:"i"`
 	}
 
 	var p powChallenge
@@ -37,13 +38,16 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 		h.Write([]byte(is))
 
 		if bytes.HasPrefix(h.Sum(nil), []byte{0x00, 0x00}) {
-			solution := p.R + "-" + p.S + "-" + is
-			return []byte(solution), nil
+			return []byte(p.R + "-" + p.S + "-" + is), nil
 		}
 
 		h.Reset()
 	}
 	panic("unreachable")
+}
+
+func expectedPOWChallengeLength(supportID []byte) int {
+	return len(validatorPOWChallengeTemplate) + len(`,"i":""`) + len(supportID)
 }
 
 func Test_validatorPOW(t *testing.T) {
@@ -63,13 +67,23 @@ func Test_validatorPOW(t *testing.T) {
 		Level:   1,
 	}
 	req.Method = http.MethodGet
+	req.SupportID = []byte("bh@123e4567-e89b-12d3-a456-426614174000")
 
 	if err := validatorPOW(bh, req, resp); err != nil {
 		t.Errorf("validator failed: %v", err)
 	}
 
-	if resp.Body.Len() != len(validatorPOWChallengeTemplate) {
-		t.Errorf("invalid challenge response length: %d != %d", len(validatorPOWChallengeTemplate), resp.Body.Len())
+	if resp.Body.Len() != expectedPOWChallengeLength(req.SupportID) {
+		t.Errorf("invalid challenge response length: %d", resp.Body.Len())
+	}
+	var challenge struct {
+		SupportID string `json:"i"`
+	}
+	if err := json.Unmarshal(resp.Body.ReadBytes(), &challenge); err != nil {
+		t.Fatalf("decode challenge: %v", err)
+	}
+	if challenge.SupportID != string(req.SupportID) {
+		t.Fatalf("support ID = %q, want %q", challenge.SupportID, req.SupportID)
 	}
 
 	solution, err := solvePOW(t, resp.Body.ReadBytes())
@@ -79,6 +93,12 @@ func Test_validatorPOW(t *testing.T) {
 
 	// Do another request but this time as POST and with the solution.
 	req.Method = http.MethodPost
+	changed := bytes.Clone(solution)
+	changed[len(validatorPOWRandom)-1] = '1'
+	req.Body = changed
+	if err := validatorPOW(bh, req, resp); err != ErrInvalidHMAC {
+		t.Errorf("changed support ID error = %v, want %v", err, ErrInvalidHMAC)
+	}
 	req.Body = solution
 	if err := validatorPOW(bh, req, resp); err != nil {
 		t.Errorf("validator failed: %v", err)
@@ -111,13 +131,14 @@ func Test_validatorPOW_unique(t *testing.T) {
 		Level:   1,
 	}
 	req.Method = http.MethodGet
+	req.SupportID = []byte("bh@123e4567-e89b-12d3-a456-426614174000")
 
 	if err := validatorPOW(bh, req, resp); err != nil {
 		t.Errorf("validator failed: %v", err)
 	}
 
-	if resp.Body.Len() != len(validatorPOWChallengeTemplate) {
-		t.Errorf("invalid challenge response length: %d != %d", len(validatorPOWChallengeTemplate), resp.Body.Len())
+	if resp.Body.Len() != expectedPOWChallengeLength(req.SupportID) {
+		t.Errorf("invalid challenge response length: %d", resp.Body.Len())
 	}
 
 	solution, err := solvePOW(t, resp.Body.ReadBytes())
@@ -155,6 +176,7 @@ func Benchmark_validatorPOW_GET(b *testing.B) {
 
 	req.Identifier = &ri
 	req.Method = http.MethodGet
+	req.SupportID = []byte("bh@123e4567-e89b-12d3-a456-426614174000")
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -187,7 +209,9 @@ func Benchmark_validatorPOW_POST(b *testing.B) {
 
 	req, resp := AcquireValidatorRequest(), AcquireValidatorResponse()
 	defer ReleaseValidatorRequest(req)
+	req.Identifier = &ri
 	req.Method = http.MethodGet
+	req.SupportID = []byte("bh@123e4567-e89b-12d3-a456-426614174000")
 
 	if err := validatorPOW(bh, req, resp); err != nil {
 		b.Errorf("validator failed: %v", err)
@@ -199,7 +223,6 @@ func Benchmark_validatorPOW_POST(b *testing.B) {
 	}
 
 	ReleaseValidatorResponse(resp)
-	req.Identifier = &ri
 	req.Method = http.MethodPost
 	req.Body = solution
 
