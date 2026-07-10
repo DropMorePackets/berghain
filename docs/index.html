@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Berghain — Help &amp; Verification Guide</title>
+  <meta name="description" content="Help page for Berghain, a stateless HAProxy SPOE bot-gate. Why you might be seeing a verification screen, browser compatibility, privacy and how to get unblocked.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/berghain.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <img src="assets/img/berghain-logo.svg" alt="">
+      <span>Berghain</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#what">What is it?</a>
+      <a href="#why">Why</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#blocked">Blocked?</a>
+      <a href="#compat">Browsers</a>
+      <a href="#extensions">Extensions</a>
+      <a href="#open-source">Open Source</a>
+      <a href="#restrictions">Restrictions</a>
+      <a href="#report">Report</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-logo"><img src="assets/img/berghain-logo.svg" alt="Berghain shield mark"></div>
+    <div class="hero-copy">
+      <h1>The <span class="accent">bouncer</span> for your backend</h1>
+      <p>Berghain is a lightweight door policy for web servers. If you landed on a
+        &ldquo;Request on Hold&rdquo; screen and want to know why &mdash; or how to get past it &mdash;
+        you are in the right place.</p>
+      <div class="btn-row">
+        <a class="btn primary" href="#blocked">I&#39;m being blocked</a>
+        <a class="btn" href="https://github.com/DropMorePackets/berghain">View on GitHub</a>
+      </div>
+      <p class="tagline" style="margin-top:18px">Stateless &middot; open source &middot; no third-party CDN &middot; no server-side tracking store</p>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+
+  <!-- What is Berghain -->
+  <section class="section" id="what">
+    <h2><span class="rope" aria-hidden="true"></span>What is Berghain?</h2>
+    <p class="lead">Think of it as the bouncer at the velvet rope, and your backend as the party
+      on the other side.</p>
+    <p>Berghain is a stateless bot-gate that sits in front of a website. It is implemented as an
+      <strong>HAProxy SPOE agent</strong> (Stream Processing Offload Engine) written in Go. Before a
+      request is allowed through to the real application, Berghain checks whether the visitor is
+      carrying a valid &ldquo;clearance&rdquo; &mdash; and if not, it briefly holds the request and shows a
+      short verification screen instead.</p>
+    <p>The goal is simple: keep automated abuse out while letting real browsers in with as little
+      friction as possible. Legitimate visitors usually pass through in a few seconds and rarely see
+      the screen again, because their clearance is remembered by their own browser (in a cookie),
+      not by a server-side database.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Stateless by design</h3>
+        <p>There is no session store to look you up in. Your clearance travels with you in a single
+          signed cookie, so Berghain can scale horizontally and forgets you the moment the cookie
+          expires.</p>
+      </div>
+      <div class="card">
+        <h3>Runs at the edge</h3>
+        <p>It plugs into HAProxy, a battle-tested load balancer, so the check happens before traffic
+          reaches your application &mdash; no code changes to the protected site are required.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why bot protection -->
+  <section class="section" id="why">
+    <h2><span class="rope" aria-hidden="true"></span>Why bot protection?</h2>
+    <p>The modern web is crawled relentlessly. Scrapers, credential-stuffing scripts, content
+      thieves and aggressive AI-training crawlers can generate far more traffic than real people,
+      driving up costs and degrading the experience for everyone else.</p>
+    <ul class="checklist">
+      <li>Stop automated scraping of content, prices and personal data.</li>
+      <li>Blunt credential-stuffing and account-takeover attempts before they hit login forms.</li>
+      <li>Shield fragile or expensive endpoints from floods of automated requests.</li>
+      <li>Keep infrastructure costs down by turning away traffic that was never a customer.</li>
+    </ul>
+    <p>Berghain asks every visitor to prove they are running a real, capable browser. That is cheap
+      for a genuine person and their browser, but expensive to fake at scale for a bot farm.</p>
+  </section>
+
+  <!-- Privacy -->
+  <section class="section" id="privacy">
+    <h2><span class="rope" aria-hidden="true"></span>Privacy</h2>
+    <p class="lead">Berghain is built to verify you without building a profile of you.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>One signed clearance cookie</h3>
+        <p>Your authorization lives entirely in a single signed <code>berghain</code> cookie. It is an
+          <abbr title="Hash-based Message Authentication Code">HMAC</abbr> computed over the host you
+          are visiting, your IP address, the challenge level and an expiry time. If any of those
+          change, the cookie no longer validates &mdash; and that is the whole mechanism.</p>
+      </div>
+      <div class="card">
+        <h3>No server-side store</h3>
+        <p>Because verification is stateless, there is no database of visitors, sessions or
+          fingerprints to query, leak or subpoena. The server only re-computes the signature and
+          compares it. Nothing about your visit is retained after the cookie expires.</p>
+      </div>
+      <div class="card">
+        <h3>Your IP is bound, not stored</h3>
+        <p>Your IP address is mixed into the cookie&#39;s signature so a clearance cannot be copied to
+          another machine. It is <strong>bound cryptographically, not saved in plaintext</strong> as a
+          record of where you were.</p>
+      </div>
+      <div class="card">
+        <h3>No third-party CDN</h3>
+        <p>The verification screen and any proof-of-work run in your own browser and are served from
+          the same site you are visiting. There are no external trackers, fonts or scripts loaded
+          from someone else&#39;s servers &mdash; and this help page follows the same rule.</p>
+      </div>
+    </div>
+    <div class="note">
+      The optional proof-of-work challenge is computed <strong>client-side</strong>, in your browser.
+      The server hands out a small puzzle and only checks the answer; it never watches how you move
+      your mouse or type.
+    </div>
+  </section>
+
+  <!-- Troubleshooting / Blocked -->
+  <section class="section" id="blocked">
+    <h2><span class="rope" aria-hidden="true"></span>Blocked? Troubleshooting</h2>
+    <p>If you keep seeing the &ldquo;Request on Hold&rdquo; screen and the verification will not
+      complete, it usually means your browser could not run or store the check. Work through the
+      list below &mdash; most cases are fixed by one of the first three items.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>1. Update your browser</h3>
+        <p>Very old browsers may lack the features the challenge relies on. Install the latest version
+          of your browser and try again.</p>
+      </div>
+      <div class="card">
+        <h3>2. Enable JavaScript</h3>
+        <p>The verification runs a small piece of JavaScript. If scripts are disabled globally or for
+          this site, the check can never finish. Allow JavaScript and reload.</p>
+      </div>
+      <div class="card">
+        <h3>3. Enable cookies</h3>
+        <p>Your clearance is stored in a cookie. If cookies are blocked, you will be sent back to the
+          verification screen on every request. Allow cookies for the site and reload.</p>
+      </div>
+      <div class="card">
+        <h3>4. Disable aggressive extensions</h3>
+        <p>Some privacy or script-blocking extensions interfere with the challenge. Temporarily
+          disable them (see <a href="#extensions">Browser extensions</a>) and reload.</p>
+      </div>
+      <div class="card">
+        <h3>5. Try another browser</h3>
+        <p>If the verification still repeats, try a different, mainstream browser to confirm whether
+          the problem is your current setup.</p>
+      </div>
+      <div class="card">
+        <h3>6. Still stuck?</h3>
+        <p>If the verification still repeats on an up-to-date, mainstream browser,
+          <a href="#report">report an issue</a> with your browser and operating system so an
+          operator can investigate.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Browser compatibility -->
+  <section class="section" id="compat">
+    <h2><span class="rope" aria-hidden="true"></span>Browser compatibility</h2>
+    <p>The verification needs a modern browser with <strong>JavaScript and cookies enabled</strong>.
+      The proof-of-work step hashes with the <strong>Web Crypto API</strong> when the site is served
+      over HTTPS, and falls back to a <strong>bundled JavaScript SHA-256 implementation</strong> on
+      plain HTTP, so it does not depend on a secure context to work.</p>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Desktop browsers</caption>
+        <thead>
+          <tr><th scope="col">Browser</th><th scope="col">Supported</th><th scope="col">Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Google Chrome (current)</td><td><span class="pill yes">Yes</span></td><td>Recommended. Web Crypto available on HTTPS.</td></tr>
+          <tr><td>Mozilla Firefox (current)</td><td><span class="pill yes">Yes</span></td><td>Works with default settings.</td></tr>
+          <tr><td>Microsoft Edge (current)</td><td><span class="pill yes">Yes</span></td><td>Chromium-based; behaves like Chrome.</td></tr>
+          <tr><td>Apple Safari (current)</td><td><span class="pill yes">Yes</span></td><td>Works with default settings.</td></tr>
+          <tr><td>Opera / Brave / Vivaldi (current)</td><td><span class="pill yes">Yes</span></td><td>Chromium-based. Disable extra shields if the check repeats.</td></tr>
+          <tr><td>Legacy / EOL browsers (e.g. IE 11)</td><td><span class="pill no">No</span></td><td>Missing modern APIs; not supported.</td></tr>
+          <tr><td>JavaScript or cookies disabled</td><td><span class="pill no">No</span></td><td>The challenge cannot run or be stored.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Mobile browsers</caption>
+        <thead>
+          <tr><th scope="col">Browser</th><th scope="col">Supported</th><th scope="col">Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Chrome for Android</td><td><span class="pill yes">Yes</span></td><td>Works with default settings.</td></tr>
+          <tr><td>Safari on iOS / iPadOS</td><td><span class="pill yes">Yes</span></td><td>Works with default settings.</td></tr>
+          <tr><td>Firefox for Android</td><td><span class="pill yes">Yes</span></td><td>Disable strict tracking blockers if the check repeats.</td></tr>
+          <tr><td>Samsung Internet</td><td><span class="pill yes">Yes</span></td><td>Chromium-based; works with default settings.</td></tr>
+          <tr><td>Private / incognito mode</td><td><span class="pill warn">Problematic</span></td><td>Fine while the tab stays open; clearance is lost when it closes.</td></tr>
+          <tr><td>In-app / embedded webviews</td><td><span class="pill warn">Problematic</span></td><td>May restrict cookies or scripts. Open in a full browser instead.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Browser extensions -->
+  <section class="section" id="extensions">
+    <h2><span class="rope" aria-hidden="true"></span>Browser extensions</h2>
+    <p>Most extensions are harmless. A few &mdash; specifically strict <strong>script blockers</strong>
+      and <strong>canvas / fingerprint blockers</strong> &mdash; can break the JavaScript challenge,
+      because they remove exactly the browser capabilities the check depends on.</p>
+    <div class="table-scroll">
+      <table>
+        <caption>Extension categories</caption>
+        <thead>
+          <tr><th scope="col">Category</th><th scope="col">Impact</th><th scope="col">What to do</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Ad blockers (standard lists)</td><td><span class="pill yes">Usually fine</span></td><td>No action needed in most cases.</td></tr>
+          <tr><td>Script blockers (e.g. NoScript, uMatrix)</td><td><span class="pill no">Breaks the challenge</span></td><td>Allow scripts for the site, or disable temporarily.</td></tr>
+          <tr><td>Canvas / fingerprint blockers</td><td><span class="pill warn">May break harder challenges</span></td><td>Whitelist the site if verification repeats.</td></tr>
+          <tr><td>Anti-fingerprinting suites (e.g. JShelter)</td><td><span class="pill warn">May block the crypto the check needs</span></td><td>Relax protection for the site.</td></tr>
+          <tr><td>Cookie blockers / auto-cleaners</td><td><span class="pill no">Loses clearance</span></td><td>Allow cookies for the site so clearance persists.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note rope-note">
+      Rule of thumb: if the verification loops forever, temporarily disable script- and
+      canvas-blocking extensions, reload, and re-enable them once you are through.
+    </div>
+  </section>
+
+  <!-- Open Source -->
+  <section class="section" id="open-source">
+    <h2><span class="rope" aria-hidden="true"></span>Open Source</h2>
+    <p class="lead">Berghain is open source. Nothing about the door policy is a secret.</p>
+    <p>Because Berghain relies on cryptography (an HMAC-signed cookie) rather than on hiding how it
+      works, the whole thing can be public. You can read the code, audit exactly what data the cookie
+      contains, verify the privacy claims on this page for yourself, run it on your own
+      infrastructure, and contribute improvements.</p>
+    <div class="btn-row">
+      <a class="btn primary" href="https://github.com/DropMorePackets/berghain">Source on GitHub</a>
+      <a class="btn" href="https://github.com/DropMorePackets/berghain/blob/master/LICENSE">Read the license</a>
+    </div>
+    <p style="margin-top:16px">Released under the Apache License 2.0. Contributions, audits and bug
+      reports are welcome.</p>
+  </section>
+
+  <!-- Network & Client Restrictions -->
+  <section class="section" id="restrictions">
+    <h2><span class="rope" aria-hidden="true"></span>Network &amp; client restrictions</h2>
+    <p>What a visitor must satisfy depends on how the operator has configured Berghain and the
+      surrounding HAProxy setup. The list below separates <strong>what Berghain itself enforces
+      today</strong> from <strong>optional measures an operator may add</strong>. Expand each item to
+      learn more &mdash; no JavaScript required.</p>
+
+    <div class="accordion-group">
+      <div class="group-head">
+        <span class="tag live">Implemented today</span>
+        <h3>Enforced by Berghain</h3>
+      </div>
+
+      <details class="accordion">
+        <summary>JavaScript is required</summary>
+        <div class="body">
+          <p>The verification screen runs a small script to complete the challenge and obtain your
+            clearance cookie. With JavaScript disabled, the check cannot proceed. This is a core part
+            of how Berghain distinguishes real browsers from simple scripts.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Cookies are required</summary>
+        <div class="body">
+          <p>Your clearance is a single signed cookie. If your browser will not store it, every
+            request looks unverified and you are returned to the challenge. Cookies must be enabled
+            for the protected site.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Progressive friction (challenge duration &amp; countdown)</summary>
+        <div class="body">
+          <p>Operators define one or more <em>levels</em>, each with its own duration and, optionally,
+            a short countdown before the check completes (configurable from 0 to 9 seconds). Higher
+            levels can impose a longer or more visible wait, so protection can escalate for riskier
+            traffic while ordinary visitors get the lightest touch.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Proof-of-work challenge</summary>
+        <div class="body">
+          <p>A level can require a proof-of-work: your browser must find an input whose hash begins
+            with a run of zero bits. It is deliberately cheap for one genuine visitor but costly to
+            repeat across a bot farm. The computation runs entirely in your browser &mdash; the server
+            only hands out the puzzle and checks the answer.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="accordion-group">
+      <div class="group-head">
+        <span class="tag planned">Planned / operator-optional</span>
+        <h3>May be enabled by the operator</h3>
+      </div>
+      <div class="note">
+        These are <strong>not core Berghain guarantees</strong>. They describe measures an operator
+        may layer on in HAProxy or via an optional feed. Whether any apply to you depends entirely on
+        the site you are visiting.
+      </div>
+
+      <details class="accordion">
+        <summary>IP reputation (CrowdSec)</summary>
+        <div class="body">
+          <p>An operator may consult a community threat feed such as CrowdSec and apply extra
+            friction, or a block, to addresses with a poor reputation.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>VPN &amp; Tor exit handling</summary>
+        <div class="body">
+          <p>Traffic arriving from known VPN endpoints or Tor exit nodes may be treated with more
+            caution, since these are frequently used to mask automated abuse.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Datacenter / ASN blocking</summary>
+        <div class="body">
+          <p>Requests originating from hosting-provider and datacenter networks (by ASN) may face
+            stricter handling, because ordinary visitors rarely browse from server ranges.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Cloudflare WARP</summary>
+        <div class="body">
+          <p>Operators may choose how to treat traffic relayed through Cloudflare WARP, either
+            allowing it or applying additional checks.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Apple Private Relay</summary>
+        <div class="body">
+          <p>Connections coming through Apple Private Relay may be handled with a dedicated policy so
+            that legitimate iCloud+ users are not unduly penalized.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>AI-browser handling</summary>
+        <div class="body">
+          <p>Automated &ldquo;AI browsers&rdquo; and agentic crawlers may be identified and routed to
+            stricter challenges or a dedicated tarpit at the operator&#39;s discretion.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Rate limiting</summary>
+        <div class="body">
+          <p>Operators commonly add request rate limits in HAProxy so that even verified clients
+            cannot flood an endpoint. Limits and thresholds are set per deployment.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- Report an issue -->
+  <section class="section" id="report">
+    <h2><span class="rope" aria-hidden="true"></span>Report an issue</h2>
+    <p>If you believe you are being blocked by mistake, or the verification will not complete after
+      working through the <a href="#blocked">troubleshooting steps</a>, please open an issue so an
+      operator can help.</p>
+    <div class="card">
+      <h3>What to include</h3>
+      <p>Tell us your browser and version, your operating system, the address you were trying to
+        reach and what happened. A screenshot of the verification screen helps too. The more detail
+        you provide, the faster an operator can reproduce and fix the problem.</p>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <a class="btn primary" href="https://github.com/DropMorePackets/berghain/issues">Report an issue on GitHub</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap foot-grid">
+    <div>
+      Berghain &mdash; the bouncer for your backend. Open source, Apache&nbsp;2.0.
+    </div>
+    <div>
+      <a href="https://github.com/DropMorePackets/berghain">GitHub</a> &middot;
+      <a href="https://github.com/DropMorePackets/berghain/issues">Issues</a> &middot;
+      <a href="https://github.com/DropMorePackets/berghain/blob/master/LICENSE">License</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
