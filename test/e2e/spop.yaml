@@ -1,0 +1,8 @@
+listen: tcp://127.0.0.1:19091
+secret: JMal0XJRROOMsMdPqggG2tR56CTkpgN3r47GgUN/WSQ=
+
+default:
+  levels:
+    - duration: 2m
+      type: pow
+      countdown: 1
