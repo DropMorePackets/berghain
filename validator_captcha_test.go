@@ -209,6 +209,33 @@ func Test_validatorCaptcha_POST_hostMismatch(t *testing.T) {
 	}
 }
 
+func Test_validatorCaptcha_POST_skipHostnameCheck(t *testing.T) {
+	const token = "widget-response-token"
+
+	// Provider test keys report a fixed hostname unrelated to the page.
+	stub := newSiteverifyStub(t, captchaVerdict{Success: true, Hostname: "unrelated.example.org"}, token)
+	defer stub.Close()
+
+	bh := newCaptchaBerghain(t, stub.URL)
+	bh.Levels[0].CaptchaSkipHostnameCheck = true
+
+	req, resp := AcquireValidatorRequest(), AcquireValidatorResponse()
+	defer ReleaseValidatorRequest(req)
+	defer ReleaseValidatorResponse(resp)
+
+	req.Identifier = newCaptchaIdentifier()
+	req.Method = http.MethodPost
+	req.Body = []byte(token)
+
+	if err := validatorCaptcha(bh, req, resp); err != nil {
+		t.Fatalf("validator failed: %v", err)
+	}
+
+	if err := bh.IsValidCookie(*req.Identifier, resp.Token.ReadBytes()); err != nil {
+		t.Errorf("invalid cookie: %v", err)
+	}
+}
+
 func Test_validatorCaptcha_POST_unavailable(t *testing.T) {
 	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
