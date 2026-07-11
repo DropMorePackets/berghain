@@ -6,3 +6,14 @@ default:
     - duration: 2m
       type: pow
       countdown: 1
+
+frontend:
+  e2e_turnstile:
+    levels:
+      - duration: 2m
+        type: turnstile
+        countdown: 1
+        sitekey: 1x00000000000000000000AA               # dummy sitekey, always passes
+        secret: 1x0000000000000000000000000000000AA     # dummy secret, always passes
+        # the dummy keys report hostname example.com instead of localhost
+        skip_hostname_check: true
