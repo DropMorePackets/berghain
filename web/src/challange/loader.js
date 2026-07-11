@@ -49,6 +49,29 @@ export function showCapabilities(missing){
     container.style.display = "block";
 }
 
+/**
+ * Show the captcha widget mount point instead of the spinner.
+ *
+ * @return {HTMLDivElement} The widget container.
+ */
+export function showWidget(){
+    const widget = /** @type {HTMLDivElement} */ (document.getElementById("captcha-widget"));
+    const loader = /** @type {HTMLDivElement} */ (document.querySelector(".circle-loader"));
+    loader.style.display = "none";
+    widget.style.display = "block";
+    return widget;
+}
+
+/**
+ * Hide the captcha widget and bring the spinner back.
+ */
+export function hideWidget(){
+    const widget = /** @type {HTMLDivElement} */ (document.getElementById("captcha-widget"));
+    const loader = /** @type {HTMLDivElement} */ (document.querySelector(".circle-loader"));
+    widget.style.display = "none";
+    loader.style.display = "";
+}
+
 export function setChallengeInfo(text){
     const captcha = /** @type {HTMLDivElement} */ (document.querySelector(".captcha"));
     captcha.innerText = text;
