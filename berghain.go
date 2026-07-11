@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"hash"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -13,11 +14,26 @@ type LevelConfig struct {
 	Countdown int
 	Duration  time.Duration
 	Type      ValidationType
+
+	// Captcha configuration, required for the turnstile, hcaptcha and
+	// recaptcha validation types.
+	CaptchaSitekey string
+	CaptchaSecret  string
+	// CaptchaVerifyURL overrides the provider siteverify endpoint,
+	// e.g. for regional endpoints or tests.
+	CaptchaVerifyURL string
+
+	captchaBodyOnce sync.Once
+	captchaBody     []byte
 }
 
 type Berghain struct {
 	Levels         []*LevelConfig
 	TrustedDomains []string
+
+	// HTTPClient is used for captcha siteverify requests.
+	// Defaults to a client with a 5 second timeout.
+	HTTPClient *http.Client
 
 	secret []byte
 	hmac   sync.Pool
@@ -34,6 +50,15 @@ func NewBerghain(secret []byte) *Berghain {
 			},
 		},
 	}
+}
+
+var defaultHTTPClient = &http.Client{Timeout: 5 * time.Second}
+
+func (b *Berghain) httpClient() *http.Client {
+	if b.HTTPClient != nil {
+		return b.HTTPClient
+	}
+	return defaultHTTPClient
 }
 
 func (b *Berghain) acquireHMAC() hash.Hash {
