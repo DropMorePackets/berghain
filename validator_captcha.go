@@ -12,10 +12,17 @@ import (
 type captchaValidator struct {
 }
 
-var captchaVerifyURLs = map[ValidationType]string{
-	ValidationTypeTurnstile: "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-	ValidationTypeHCaptcha:  "https://api.hcaptcha.com/siteverify",
-	ValidationTypeReCaptcha: "https://www.google.com/recaptcha/api/siteverify",
+func captchaVerifyURL(t ValidationType) string {
+	switch t {
+	case ValidationTypeTurnstile:
+		return "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+	case ValidationTypeHCaptcha:
+		return "https://api.hcaptcha.com/siteverify"
+	case ValidationTypeReCaptcha:
+		return "https://www.google.com/recaptcha/api/siteverify"
+	default:
+		return ""
+	}
 }
 
 // Providers accept tokens of a few kilobytes; reCAPTCHA tokens are the
@@ -77,7 +84,7 @@ func (captchaValidator) isValid(b *Berghain, req *ValidatorRequest, _ *Validator
 
 	verifyURL := lc.CaptchaVerifyURL
 	if verifyURL == "" {
-		verifyURL = captchaVerifyURLs[lc.Type]
+		verifyURL = captchaVerifyURL(lc.Type)
 	}
 
 	form := url.Values{
