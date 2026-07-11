@@ -1,5 +1,15 @@
 secret: JMal0XJRROOMsMdPqggG2tR56CTkpgN3r47GgUN/WSQ=
 
+# Optional embedded IP reputation: serve CrowdSec decisions and static feeds
+# to HAProxy over the peers protocol from this same process. See
+# examples/haproxy/haproxy-reputation.cfg for the matching HAProxy side.
+#reputation:
+#  peer_listen: 0.0.0.0:10001    # must match this peer's entry in the peers section
+#  local_peer: berghain_feed     # our name in the peers section
+#  crowdsec:
+#    url: http://crowdsec:8080   # LAPI; api_key via CROWDSEC_API_KEY or api_key:
+#  maps_dir: examples/haproxy/maps  # where CIDR feeds land; empty disables them
+
 default:
   levels:
     - duration: 24h

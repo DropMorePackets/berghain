@@ -9,6 +9,7 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/DropMorePackets/berghain"
+	"github.com/DropMorePackets/berghain/internal/reputation"
 )
 
 type Config struct {
@@ -16,6 +17,12 @@ type Config struct {
 	Listen   string                    `yaml:"listen"`
 	Default  FrontendConfig            `yaml:"default"`
 	Frontend map[string]FrontendConfig `yaml:"frontend"`
+
+	// Reputation optionally embeds the IP reputation service (CrowdSec +
+	// static feeds over the peers protocol) into this process, so a simple
+	// deployment needs no separate feed daemon. Enabled when peer_listen is
+	// set; cmd/feedupdater runs the same service standalone.
+	Reputation reputation.Config `yaml:"reputation"`
 }
 
 type Secret []byte
