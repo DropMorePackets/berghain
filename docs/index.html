@@ -123,7 +123,10 @@
         <h3>No third-party CDN</h3>
         <p>The verification screen and any proof-of-work run in your own browser and are served from
           the same site you are visiting. There are no external trackers, fonts or scripts loaded
-          from someone else&#39;s servers &mdash; and this help page follows the same rule.</p>
+          from someone else&#39;s servers &mdash; and this help page follows the same rule. The one
+          exception: if the operator enables a captcha level, the widget script is loaded from that
+          captcha provider (Cloudflare Turnstile, hCaptcha or Google reCAPTCHA) and the provider&#39;s
+          own privacy policy applies to it.</p>
       </div>
     </div>
     <div class="note">
@@ -310,6 +313,18 @@
             with a run of zero bits. It is deliberately cheap for one genuine visitor but costly to
             repeat across a bot farm. The computation runs entirely in your browser &mdash; the server
             only hands out the puzzle and checks the answer.</p>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary>Captcha challenge (Turnstile, hCaptcha, reCAPTCHA)</summary>
+        <div class="body">
+          <p>A level can require solving a captcha widget from Cloudflare Turnstile, hCaptcha or
+            Google reCAPTCHA. The widget appears on the verification screen; once it is satisfied,
+            its response is checked with the provider and you receive the same clearance cookie as
+            with any other level. The widget script is loaded from the provider&#39;s servers, so a
+            content blocker that blocks the provider will also block the verification &mdash; the
+            screen will tell you when that happens.</p>
         </div>
       </details>
     </div>

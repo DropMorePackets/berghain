@@ -36,20 +36,23 @@ berghain_pid=$!
 haproxy -db -f test/e2e/haproxy.cfg >"$run_dir/haproxy.log" 2>&1 &
 haproxy_pid=$!
 
-ready=""
-for _ in $(seq 1 30); do
-    status="$(curl --max-time 1 --silent --output /dev/null --write-out '%{http_code}' http://localhost:18080/ || true)"
-    if [[ $status == 403 ]]; then
-        ready=1
-        break
+for port in 18080 18081; do
+    ready=""
+    for _ in $(seq 1 30); do
+        status="$(curl --max-time 1 --silent --output /dev/null --write-out '%{http_code}' "http://localhost:$port/" || true)"
+        if [[ $status == 403 ]]; then
+            ready=1
+            break
+        fi
+        sleep 1
+    done
+    if [[ -z "$ready" ]]; then
+        echo "E2E stack did not serve the challenge page on port $port" >&2
+        exit 1
     fi
-    sleep 1
 done
-if [[ -z "$ready" ]]; then
-    echo "E2E stack did not serve the challenge page" >&2
-    exit 1
-fi
 
 export BERGHAIN_E2E_BASE_URL=http://localhost:18080
+export BERGHAIN_E2E_TURNSTILE_URL=http://localhost:18081
 cd test/e2e
 go test -count=1 -tags=e2e -v .

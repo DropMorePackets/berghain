@@ -16,12 +16,41 @@ browsers that really know how to dance!
 ## Supported CAPTCHAs
 - None (Simple JS execute)
 - POW
+- [Turnstile](https://developers.cloudflare.com/turnstile/)
+- [hCaptcha](https://www.hcaptcha.com/)
+- [reCAPTCHA v2](https://developers.google.com/recaptcha)
 
 ## Planned support
 - Simple Captcha (Including Sound)
-- [hCaptcha](https://www.hcaptcha.com/)
-- [reCatpcha](https://developers.google.com/recaptcha?hl=de)
-- [Turnstile](https://developers.cloudflare.com/turnstile/)
+
+## Captcha challenge types
+
+The `turnstile`, `hcaptcha` and `recaptcha` (v2 checkbox) level types render the provider widget
+on the challenge page and exchange its response token for a Berghain cookie after verifying it
+against the provider:
+
+```yaml
+default:
+  levels:
+    - duration: 12h
+      type: turnstile   # or hcaptcha / recaptcha
+      sitekey: <your sitekey>
+      secret: <your secret>
+```
+
+Things to know when enabling a captcha level:
+
+- The Berghain agent verifies tokens against the provider's `siteverify` endpoint, so it needs
+  outbound HTTPS access. Verification fails closed: if the provider is unreachable, the challenge
+  fails and the visitor can retry. `verify_url` overrides the endpoint, e.g. for `recaptcha.net`.
+- Challenge verification does a network round-trip, so the SPOE challenge group needs a larger
+  `timeout processing` than the validate path. The example config runs the two groups as separate
+  agents (`berghain` at 100ms, `berghain_challenge` at 6s) for this reason.
+- The token is only accepted when the provider-reported hostname matches the request identity
+  (subdomains included). Provider *test keys* report a fixed hostname, so tests can set
+  `skip_hostname_check: true`; production setups should never need it.
+- Visitors' browsers load the widget script from the provider's domain. If you serve the challenge
+  page with a Content-Security-Policy, allow the provider in `script-src` and `frame-src`.
 
 ## Example setup with HAProxy
 To start berghain locally you can follow these easy steps:

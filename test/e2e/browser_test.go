@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	defaultBaseURL = "http://localhost:18080"
-	backendBody    = "Berghain E2E backend reached"
+	defaultBaseURL      = "http://localhost:18080"
+	defaultTurnstileURL = "http://localhost:18081"
+	backendBody         = "Berghain E2E backend reached"
 )
 
 func baseURL() string {
@@ -26,6 +27,13 @@ func baseURL() string {
 		return strings.TrimRight(value, "/")
 	}
 	return defaultBaseURL
+}
+
+func turnstileURL() string {
+	if value := os.Getenv("BERGHAIN_E2E_TURNSTILE_URL"); value != "" {
+		return strings.TrimRight(value, "/")
+	}
+	return defaultTurnstileURL
 }
 
 func requireChallengePage(t *testing.T, url string) {
@@ -51,7 +59,19 @@ func requireChallengePage(t *testing.T, url string) {
 }
 
 func TestBrowserSolvesChallenge(t *testing.T) {
-	url := baseURL()
+	solveChallengeInBrowser(t, baseURL())
+}
+
+// TestBrowserSolvesTurnstileChallenge drives the full captcha flow with
+// Cloudflare's always-passing dummy keys, so it needs egress to the real
+// Turnstile script and siteverify endpoints.
+func TestBrowserSolvesTurnstileChallenge(t *testing.T) {
+	solveChallengeInBrowser(t, turnstileURL())
+}
+
+func solveChallengeInBrowser(t *testing.T, url string) {
+	t.Helper()
+
 	requireChallengePage(t, url)
 
 	options := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
