@@ -95,6 +95,9 @@ func Test_validatorPOW(t *testing.T) {
 	}
 
 	// Do another request but this time as POST and with the solution.
+	// The SPOP handler acquires a fresh response per request; mirror that
+	// so the challenge body from the GET does not linger.
+	resp.Body.Reset()
 	req.Method = http.MethodPost
 	changed := bytes.Clone(solution)
 	changed[len(validatorPOWRandom)-1] = '1'

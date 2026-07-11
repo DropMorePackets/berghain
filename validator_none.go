@@ -14,8 +14,8 @@ type noneChallengeTemplate struct {
 	raw  string
 
 	// Slot accessors; valid after init ran.
-	Countdown jsonSlot // 1 byte, '0'..'9'
-	SupportID jsonSlot // 39 support-ID chars, echoed for the challenge page
+	Countdown bufSlot // 1 byte, '0'..'9'
+	SupportID bufSlot // 39 support-ID chars, echoed for the challenge page
 }
 
 func (t *noneChallengeTemplate) init() {

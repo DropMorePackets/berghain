@@ -46,10 +46,10 @@ type powChallengeTemplate struct {
 	raw  string
 
 	// Slot accessors; valid after init ran.
-	Countdown jsonSlot // 1 byte, '0'..'9'
-	Random    jsonSlot // 16 hex timestamp chars + 39 support-ID chars
-	Sum       jsonSlot // 64 hex chars
-	SupportID jsonSlot // 39 support-ID chars, echoed for the challenge page
+	Countdown bufSlot // 1 byte, '0'..'9'
+	Random    bufSlot // 16 hex timestamp chars + 39 support-ID chars
+	Sum       bufSlot // 64 hex chars
+	SupportID bufSlot // 39 support-ID chars, echoed for the challenge page
 }
 
 func (t *powChallengeTemplate) init() {
@@ -131,7 +131,7 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	return nil
 }
 
-func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
+func (powValidator) isValid(b *Berghain, req *ValidatorRequest, _ *ValidatorResponse) error {
 	req.SupportID = nil
 	if len(req.Body) < validatorPOWMinSolutionLength || len(req.Body) > validatorPOWMaxSolutionLength {
 		return ErrInvalidLength
@@ -160,17 +160,13 @@ func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorR
 	req.Identifier.WriteTo(h)
 	h.Write(randomArea)
 
-	// we use the response body temporarily as a buffer
-	defer resp.Body.Reset()
+	var ourSum [len(validatorPOWHash)]byte
+	hex.Encode(ourSum[:], h.Sum(nil))
 
-	ourSum := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
-	hex.Encode(ourSum, h.Sum(nil))
-
-	if !bytes.Equal(ourSum, sumArea) {
+	if !bytes.Equal(ourSum[:], sumArea) {
 		// invalid hash in solution
 		return ErrInvalidHMAC
 	}
-	resp.Body.Reset()
 
 	supportID := randomArea[len(validatorPOWTimestamp):]
 	if !ValidSupportID(supportID) {
@@ -179,13 +175,13 @@ func (powValidator) isValid(b *Berghain, req *ValidatorRequest, resp *ValidatorR
 	req.SupportID = supportID
 	timestampArea := randomArea[:len(validatorPOWTimestamp)]
 
-	expirArea := resp.Body.WriteNBytes(hex.DecodedLen(len(validatorPOWTimestamp)))
-	if _, err := hex.Decode(expirArea, timestampArea); err != nil {
+	var expir [len(validatorPOWTimestamp) / 2]byte
+	if _, err := hex.Decode(expir[:], timestampArea); err != nil {
 		return err
 	}
 
 	// Untrusted input is decoded and compared!
-	if uint64(tc.Now().Unix()) > binary.LittleEndian.Uint64(expirArea) {
+	if uint64(tc.Now().Unix()) > binary.LittleEndian.Uint64(expir[:]) {
 		return ErrExpired
 	}
 

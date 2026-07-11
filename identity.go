@@ -74,12 +74,54 @@ func (ri RequestIdentifier) WriteTo(h io.Writer) (int64, error) {
 	return written, nil
 }
 
+var identityCookie cookieTemplate
+
+// The cookie document is level|expiry|sum, all hex encoded.
+type cookieTemplate struct {
+	once sync.Once
+	raw  string
+
+	// Slot accessors; valid after init ran.
+	Level  bufSlot // 2 hex chars
+	Expiry bufSlot // 16 hex chars
+	Sum    bufSlot // 64 hex chars
+}
+
+func (t *cookieTemplate) init() {
+	t.once.Do(func() {
+		const (
+			level  = "00"
+			expiry = "0000000000000000"
+			sum    = "0000000000000000000000000000000000000000000000000000000000000000"
+		)
+		t.raw = level + "|" + expiry + "|" + sum
+		if len(t.raw) != encodedCookieSize {
+			panic("buftemplate: cookie template does not match encodedCookieSize")
+		}
+
+		loc := slotLocator{doc: t.raw}
+		t.Level = loc.next(level)
+		t.Expiry = loc.next(expiry)
+		t.Sum = loc.next(sum)
+	})
+}
+
+// Render appends the template to body and returns the rendered document.
+// Slot accessors take this document and return writable views into it.
+func (t *cookieTemplate) Render(body *buffer.SliceBuffer) []byte {
+	t.init()
+	return renderTemplate(body, t.raw)
+}
+
 func (ri RequestIdentifier) ToCookie(b *Berghain, enc *buffer.SliceBuffer) error {
 	raw := AcquireCookieBuffer()
 	defer ReleaseCookieBuffer(raw)
 
 	h := b.acquireHMAC()
 	defer b.releaseHMAC(h)
+
+	tpl := &identityCookie
+	doc := tpl.Render(enc)
 
 	// Write Host to the hash
 	if _, err := h.Write(ri.Host); err != nil {
@@ -95,38 +137,25 @@ func (ri RequestIdentifier) ToCookie(b *Berghain, enc *buffer.SliceBuffer) error
 	}
 	raw.Reset()
 
-	// Write Level to the buffer and to the hash
+	// Write Level to the buffer, the hash, and its output slot.
 	raw.WriteNBytes(1)[0] = ri.Level
 	if _, err := h.Write(raw.ReadBytes()); err != nil {
 		return err
 	}
-
-	// Write the hex encoded level to the buffer and append this to the output.
-	levelArea := enc.WriteNBytes(hex.EncodedLen(raw.Len()))
-	hex.Encode(levelArea, raw.ReadBytes())
+	hex.Encode(tpl.Level(doc), raw.ReadBytes())
 	raw.Reset()
 
-	// Write a spacer to the output.
-	enc.WriteNBytes(1)[0] = '|'
-
-	// Calculate the expiration of the cookie, write it to the buffer and hash.
+	// Calculate the expiration of the cookie, write it to the hash and its slot.
 	expireAt := tc.Now().Add(b.LevelConfig(ri.Level).Duration)
 	binary.LittleEndian.PutUint64(raw.WriteNBytes(8), uint64(expireAt.Unix()))
 	if _, err := h.Write(raw.ReadBytes()); err != nil {
 		return err
 	}
-
-	// Write the hex encoded expiration to the output.
-	expireArea := enc.WriteNBytes(hex.EncodedLen(raw.Len()))
-	hex.Encode(expireArea, raw.ReadBytes())
+	hex.Encode(tpl.Expiry(doc), raw.ReadBytes())
 	raw.Reset()
 
-	// Write another spacer to the output.
-	enc.WriteNBytes(1)[0] = '|'
-
-	// Finally generate the sum and write that with hex encoding to the output.
-	sumArea := enc.WriteNBytes(hex.EncodedLen(h.Size()))
-	hex.Encode(sumArea, h.Sum(nil))
+	// Finally generate the sum into its slot.
+	hex.Encode(tpl.Sum(doc), h.Sum(nil))
 
 	return nil
 }
