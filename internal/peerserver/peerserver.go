@@ -167,6 +167,19 @@ func (s *Server) ReplaceAll(values map[netip.Addr]Entry) {
 	}
 }
 
+// Get returns the live entry for an address, if any.
+func (s *Server) Get(a netip.Addr) (Entry, bool) {
+	a = a.Unmap()
+	t := s.tableFor(a)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st, ok := t.entries[a]
+	if !ok || st.value == 0 || st.expired(time.Now()) {
+		return Entry{}, false
+	}
+	return Entry{Value: st.value, ExpiresAt: st.expireAt}, true
+}
+
 // Len returns the number of live non-zero entries across both tables.
 func (s *Server) Len() int {
 	now := time.Now()
