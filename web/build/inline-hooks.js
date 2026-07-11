@@ -1,9 +1,7 @@
 import {readFile, stat} from "node:fs/promises";
 import {dirname, isAbsolute, relative, resolve, sep} from "node:path";
-import babel from "@babel/core";
+import {parseAsync, transformFromAstAsync, traverse, types} from "@babel/core";
 import {searchForWorkspaceRoot} from "vite";
-
-const {parseAsync, transformFromAstAsync, traverse, types} = babel;
 
 const MARKER_TOKEN = "@berghain:inline";
 const SENTINEL = "__BERGHAIN_INLINE_PHASE__";
