@@ -54,6 +54,14 @@ type LevelConfig struct {
 	Countdown *int          `yaml:"countdown"`
 	Duration  time.Duration `yaml:"duration"`
 	Type      string        `yaml:"type"`
+
+	// Captcha settings, required for the turnstile, hcaptcha and
+	// recaptcha types.
+	Sitekey string `yaml:"sitekey"`
+	Secret  string `yaml:"secret"`
+	// VerifyURL overrides the provider siteverify endpoint,
+	// e.g. for regional endpoints or tests.
+	VerifyURL string `yaml:"verify_url"`
 }
 
 func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
@@ -77,8 +85,28 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 		lc.Type = berghain.ValidationTypeNone
 	case "pow":
 		lc.Type = berghain.ValidationTypePOW
+	case "turnstile":
+		lc.Type = berghain.ValidationTypeTurnstile
+	case "hcaptcha":
+		lc.Type = berghain.ValidationTypeHCaptcha
+	case "recaptcha":
+		lc.Type = berghain.ValidationTypeReCaptcha
 	default:
 		Fatal("unknown validation type", "validator", c.Type)
+	}
+
+	switch lc.Type {
+	case berghain.ValidationTypeTurnstile, berghain.ValidationTypeHCaptcha, berghain.ValidationTypeReCaptcha:
+		if c.Sitekey == "" || c.Secret == "" {
+			Fatal("captcha types require a sitekey and a secret", "validator", c.Type)
+		}
+		lc.CaptchaSitekey = c.Sitekey
+		lc.CaptchaSecret = c.Secret
+		lc.CaptchaVerifyURL = c.VerifyURL
+	default:
+		if c.Sitekey != "" || c.Secret != "" || c.VerifyURL != "" {
+			Fatal("sitekey, secret and verify_url are only valid for captcha types", "validator", c.Type)
+		}
 	}
 
 	return &lc

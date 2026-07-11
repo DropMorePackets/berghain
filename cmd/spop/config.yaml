@@ -22,3 +22,9 @@ frontend:
       - duration: 10s
         type: pow
         countdown: 0
+      # captcha levels (turnstile, hcaptcha, recaptcha) verify the widget
+      # token against the provider, so the agent needs outbound HTTPS access
+      - duration: 12h
+        type: turnstile
+        sitekey: 1x00000000000000000000AA               # dummy sitekey, always passes
+        secret: 1x0000000000000000000000000000000AA     # dummy secret, always passes

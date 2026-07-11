@@ -15,6 +15,10 @@ const (
 	_ ValidationType = iota
 	ValidationTypeNone
 	ValidationTypePOW
+	_ // reserved for worker-based POW, the web challenge protocol already assigns it t:2
+	ValidationTypeTurnstile
+	ValidationTypeHCaptcha
+	ValidationTypeReCaptcha
 )
 
 type ValidatorResponse struct {
@@ -70,6 +74,8 @@ func (v ValidationType) RunValidator(b *Berghain, req *ValidatorRequest, resp *V
 		return validatorNone(b, req, resp)
 	case ValidationTypePOW:
 		return validatorPOW(b, req, resp)
+	case ValidationTypeTurnstile, ValidationTypeHCaptcha, ValidationTypeReCaptcha:
+		return validatorCaptcha(b, req, resp)
 	default:
 		return errors.New("unknown validation type")
 	}
