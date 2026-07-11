@@ -51,6 +51,9 @@ export async function doChallenge(){
         }
     }
     catch (e){
+        if (e.advice){
+            loader.showCapabilities([e.advice]);
+        }
         result = e.toString();
     }
 
