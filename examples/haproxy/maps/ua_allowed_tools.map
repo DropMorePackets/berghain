@@ -1,0 +1,14 @@
+# Literal lowercase substrings matched with map_sub(). Map keys cannot contain
+# whitespace. Format: <substring> allow. These markers only exempt the generic
+# browser-UA rule; entries in ua_ai_crawlers.map still require a challenge.
+curl/ allow
+wget/ allow
+feedly allow
+feedbin allow
+inoreader allow
+newsblur allow
+theoldreader allow
+feedparser/ allow
+ttrss allow
+miniflux/ allow
+nextcloud-news/ allow

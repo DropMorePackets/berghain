@@ -1,0 +1,14 @@
+# Literal lowercase substrings matched with map_sub(). Map keys cannot contain
+# whitespace. Format: <substring> tarpit. Tarpits consume a connection for the
+# configured timeout; keep this list narrow and capacity-plan before enabling it.
+python-requests/ tarpit
+python-urllib/ tarpit
+aiohttp/ tarpit
+python-httpx/ tarpit
+go-http-client/ tarpit
+libwww-perl/ tarpit
+okhttp/ tarpit
+node-fetch/ tarpit
+axios/ tarpit
+scrapy/ tarpit
+guzzlehttp/ tarpit
