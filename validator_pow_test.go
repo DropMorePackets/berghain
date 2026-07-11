@@ -46,8 +46,11 @@ func solvePOW(tb testing.TB, b []byte) ([]byte, error) {
 	panic("unreachable")
 }
 
-func expectedPOWChallengeLength(supportID []byte) int {
-	return len(validatorPOWChallengeTemplate) + len(`,"i":""`) + len(supportID)
+// All template slots are fixed-width, so the rendered challenge length is
+// constant regardless of the embedded values.
+func expectedPOWChallengeLength() int {
+	validatorPOWChallenge.init()
+	return len(validatorPOWChallenge.raw)
 }
 
 func Test_validatorPOW(t *testing.T) {
@@ -73,7 +76,7 @@ func Test_validatorPOW(t *testing.T) {
 		t.Errorf("validator failed: %v", err)
 	}
 
-	if resp.Body.Len() != expectedPOWChallengeLength(req.SupportID) {
+	if resp.Body.Len() != expectedPOWChallengeLength() {
 		t.Errorf("invalid challenge response length: %d", resp.Body.Len())
 	}
 	var challenge struct {
@@ -137,7 +140,7 @@ func Test_validatorPOW_unique(t *testing.T) {
 		t.Errorf("validator failed: %v", err)
 	}
 
-	if resp.Body.Len() != expectedPOWChallengeLength(req.SupportID) {
+	if resp.Body.Len() != expectedPOWChallengeLength() {
 		t.Errorf("invalid challenge response length: %d", resp.Body.Len())
 	}
 

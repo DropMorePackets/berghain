@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"net/http"
@@ -38,18 +39,53 @@ const (
 	validatorPOWMaxSolutionLength = validatorPOWMinSolutionLength + 19
 )
 
-var validatorPOWChallengeTemplate = mustJSONEncodeString(struct {
-	Countdown int    `json:"c"`
-	Type      int    `json:"t"`
-	Random    string `json:"r"`
-	Hash      string `json:"s"`
-}{
-	// Only strings have to be set, as the default is zero for ints.
-	// We do set the Type here because it is static anyway...
-	Type:   1,
-	Random: validatorPOWRandom,
-	Hash:   "0000000000000000000000000000000000000000000000000000000000000000",
-})
+var validatorPOWChallenge powChallengeTemplate
+
+type powChallengeTemplate struct {
+	once sync.Once
+	raw  string
+
+	// Slot accessors; valid after init ran.
+	Countdown jsonSlot // 1 byte, '0'..'9'
+	Random    jsonSlot // 16 hex timestamp chars + 39 support-ID chars
+	Sum       jsonSlot // 64 hex chars
+	SupportID jsonSlot // 39 support-ID chars, echoed for the challenge page
+}
+
+func (t *powChallengeTemplate) init() {
+	t.once.Do(func() {
+		const (
+			countdown = "0"
+			echoID    = "bh@00000000-0000-4000-8000-000000000001"
+		)
+		t.raw = mustJSONEncodeString(struct {
+			Countdown json.RawMessage `json:"c"`
+			Type      int             `json:"t"`
+			Random    string          `json:"r"`
+			Hash      string          `json:"s"`
+			SupportID string          `json:"i"`
+		}{
+			Countdown: json.RawMessage(countdown),
+			Type:      1,
+			Random:    validatorPOWRandom,
+			Hash:      validatorPOWHash,
+			SupportID: echoID,
+		})
+
+		loc := slotLocator{doc: t.raw}
+		t.Countdown = loc.next(countdown)
+		t.Random = loc.next(validatorPOWRandom)
+		t.Sum = loc.next(validatorPOWHash)
+		t.SupportID = loc.next(echoID)
+	})
+}
+
+// Render appends the template to body and returns the rendered document.
+// Slot accessors take this document and return writable views into it.
+func (t *powChallengeTemplate) Render(body *buffer.SliceBuffer) []byte {
+	t.init()
+	return renderTemplate(body, t.raw)
+}
 
 // This prevents invalid template strings by validatoring them on start
 var _ = func() bool {
@@ -60,6 +96,7 @@ var _ = func() bool {
 	if !ValidSupportID([]byte(validatorPOWRandom[len(validatorPOWTimestamp):])) {
 		panic("invalid pow support ID placeholder")
 	}
+	validatorPOWChallenge.init()
 	return true
 }()
 
@@ -72,35 +109,24 @@ func (powValidator) onNew(b *Berghain, req *ValidatorRequest, resp *ValidatorRes
 	defer b.releaseHMAC(h)
 
 	lc := b.LevelConfig(req.Identifier.Level)
+	tpl := &validatorPOWChallenge
+	doc := tpl.Render(resp.Body)
 
-	copy(resp.Body.WriteBytes(), validatorPOWChallengeTemplate)
+	tpl.Countdown(doc)[0] = byte('0' + lc.Countdown)
 
-	resp.Body.AdvanceW(len(`{"c":`))
-	// the following conversion is faster than sprintf but also way uglier, I am sorry.
-	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
-	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
-	resp.Body.AdvanceW(len(`,"t":1,"r":"`))
-	randomArea := resp.Body.WriteNBytes(len(validatorPOWRandom))
-	timestampArea := randomArea[:len(validatorPOWTimestamp)]
-	copy(randomArea[len(validatorPOWTimestamp):], req.SupportID)
-	resp.Body.AdvanceW(len(`","s":"`))
-	hexArea := resp.Body.WriteNBytes(hex.EncodedLen(h.Size()))
-	resp.Body.AdvanceW(len(`"`))
-	appendSupportID(resp.Body, req.SupportID)
+	random := tpl.Random(doc)
+	var ts [8]byte
+	binary.LittleEndian.PutUint64(ts[:], uint64(tc.Now().Add(lc.Duration).Unix()))
+	hex.Encode(random[:len(validatorPOWTimestamp)], ts[:])
+	copy(random[len(validatorPOWTimestamp):], req.SupportID)
 
-	// we use the response body temporarily as a buffer
-	expireAt := tc.Now().Add(lc.Duration)
-	timestampBuf := resp.Body.WriteNBytes(8)
-	resp.Body.AdvanceW(-8) // this should be illegal
-
-	binary.LittleEndian.PutUint64(timestampBuf, uint64(expireAt.Unix()))
-	hex.Encode(timestampArea, timestampBuf)
+	copy(tpl.SupportID(doc), req.SupportID)
 
 	// Write identifier to hash to ensure uniqueness
 	req.Identifier.WriteTo(h)
-	h.Write(randomArea)
+	h.Write(random)
 
-	hex.Encode(hexArea, h.Sum(nil))
+	hex.Encode(tpl.Sum(doc), h.Sum(nil))
 
 	return nil
 }

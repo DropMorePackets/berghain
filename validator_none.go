@@ -1,13 +1,51 @@
 package berghain
 
-var validatorNoneResponse = mustJSONEncodeString(struct {
-	Countdown int `json:"c"`
-	Type      int `json:"t"`
-}{
-	// Only strings have to be set, as the default is zero for ints.
-	// We do set the Type here because it is static anyway...
-	Type: 0,
-})
+import (
+	"encoding/json"
+	"sync"
+
+	"github.com/dropmorepackets/haproxy-go/pkg/buffer"
+)
+
+var validatorNoneChallenge noneChallengeTemplate
+
+type noneChallengeTemplate struct {
+	once sync.Once
+	raw  string
+
+	// Slot accessors; valid after init ran.
+	Countdown jsonSlot // 1 byte, '0'..'9'
+	SupportID jsonSlot // 39 support-ID chars, echoed for the challenge page
+}
+
+func (t *noneChallengeTemplate) init() {
+	t.once.Do(func() {
+		const (
+			countdown = "0"
+			echoID    = "bh@00000000-0000-4000-8000-000000000001"
+		)
+		t.raw = mustJSONEncodeString(struct {
+			Countdown json.RawMessage `json:"c"`
+			Type      int             `json:"t"`
+			SupportID string          `json:"i"`
+		}{
+			Countdown: json.RawMessage(countdown),
+			Type:      0,
+			SupportID: echoID,
+		})
+
+		loc := slotLocator{doc: t.raw}
+		t.Countdown = loc.next(countdown)
+		t.SupportID = loc.next(echoID)
+	})
+}
+
+// Render appends the template to body and returns the rendered document.
+// Slot accessors take this document and return writable views into it.
+func (t *noneChallengeTemplate) Render(body *buffer.SliceBuffer) []byte {
+	t.init()
+	return renderTemplate(body, t.raw)
+}
 
 func validatorNone(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) error {
 	if !ValidSupportID(req.SupportID) {
@@ -16,13 +54,10 @@ func validatorNone(b *Berghain, req *ValidatorRequest, resp *ValidatorResponse) 
 
 	lc := b.LevelConfig(req.Identifier.Level)
 
-	copy(resp.Body.WriteBytes(), validatorNoneResponse)
-	resp.Body.AdvanceW(len(`{"c":`))
-	// the following conversion is faster than sprintf but also way uglier, I am sorry.
-	// 48 is the ASCII code for '0', adding lc.Countdown will give us the single correct digit.
-	copy(resp.Body.WriteNBytes(1), []byte{byte(48 + lc.Countdown)})
-	resp.Body.AdvanceW(len(`,"t":0`))
-	appendSupportID(resp.Body, req.SupportID)
+	tpl := &validatorNoneChallenge
+	doc := tpl.Render(resp.Body)
+	tpl.Countdown(doc)[0] = byte('0' + lc.Countdown)
+	copy(tpl.SupportID(doc), req.SupportID)
 
 	return req.Identifier.ToCookie(b, resp.Token)
 }
