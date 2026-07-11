@@ -1,3 +1,14 @@
+/**
+ * Advice shown when a captcha provider script cannot be loaded, the
+ * most common cause being a content blocker. Unlike the capabilities
+ * below this can only be detected once loading the script has failed.
+ */
+export const captchaBlockedAdvice = Object.freeze({
+    name: "Captcha provider",
+    message: "The captcha provider script could not be loaded.",
+    fix: "Disable content blockers for this page, check your network connection, and reload.",
+});
+
 const advice = {
     textEncoder: {
         name: "Text encoding",
