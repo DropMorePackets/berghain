@@ -62,6 +62,10 @@ type LevelConfig struct {
 	// VerifyURL overrides the provider siteverify endpoint,
 	// e.g. for regional endpoints or tests.
 	VerifyURL string `yaml:"verify_url"`
+	// SkipHostnameCheck disables binding the provider-reported hostname
+	// to the request identity. Provider test keys report a fixed
+	// hostname, so tests need this; production setups do not.
+	SkipHostnameCheck bool `yaml:"skip_hostname_check"`
 }
 
 func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
@@ -103,9 +107,10 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 		lc.CaptchaSitekey = c.Sitekey
 		lc.CaptchaSecret = c.Secret
 		lc.CaptchaVerifyURL = c.VerifyURL
+		lc.CaptchaSkipHostnameCheck = c.SkipHostnameCheck
 	default:
-		if c.Sitekey != "" || c.Secret != "" || c.VerifyURL != "" {
-			Fatal("sitekey, secret and verify_url are only valid for captcha types", "validator", c.Type)
+		if c.Sitekey != "" || c.Secret != "" || c.VerifyURL != "" || c.SkipHostnameCheck {
+			Fatal("sitekey, secret, verify_url and skip_hostname_check are only valid for captcha types", "validator", c.Type)
 		}
 	}
 

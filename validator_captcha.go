@@ -110,7 +110,7 @@ func (captchaValidator) isValid(b *Berghain, req *ValidatorRequest, _ *Validator
 		return fmt.Errorf("%w: %s", errCaptchaRejected, strings.Join(verdict.ErrorCodes, ", "))
 	}
 
-	if !captchaHostnameMatches(verdict.Hostname, req.Identifier.Host) {
+	if !lc.CaptchaSkipHostnameCheck && !captchaHostnameMatches(verdict.Hostname, req.Identifier.Host) {
 		return errCaptchaHostMismatch
 	}
 

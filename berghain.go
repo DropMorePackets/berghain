@@ -22,6 +22,10 @@ type LevelConfig struct {
 	// CaptchaVerifyURL overrides the provider siteverify endpoint,
 	// e.g. for regional endpoints or tests.
 	CaptchaVerifyURL string
+	// CaptchaSkipHostnameCheck disables binding the provider-reported
+	// hostname to the request identity. Provider test keys report a
+	// fixed hostname, so tests need this; production setups do not.
+	CaptchaSkipHostnameCheck bool
 
 	captchaBodyOnce sync.Once
 	captchaBody     []byte
