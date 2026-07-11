@@ -12,19 +12,6 @@ import (
 type captchaValidator struct {
 }
 
-func captchaVerifyURL(t ValidationType) string {
-	switch t {
-	case ValidationTypeTurnstile:
-		return "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-	case ValidationTypeHCaptcha:
-		return "https://api.hcaptcha.com/siteverify"
-	case ValidationTypeReCaptcha:
-		return "https://www.google.com/recaptcha/api/siteverify"
-	default:
-		return ""
-	}
-}
-
 // Providers accept tokens of a few kilobytes; reCAPTCHA tokens are the
 // largest at around two to three kilobytes.
 const validatorCaptchaMaxTokenLength = 8 << 10
@@ -82,9 +69,18 @@ func (captchaValidator) isValid(b *Berghain, req *ValidatorRequest, _ *Validator
 
 	lc := b.LevelConfig(req.Identifier.Level)
 
+	// All three providers implement the same siteverify contract:
+	// hCaptcha and Turnstile clone the reCAPTCHA API on purpose.
 	verifyURL := lc.CaptchaVerifyURL
 	if verifyURL == "" {
-		verifyURL = captchaVerifyURL(lc.Type)
+		switch lc.Type {
+		case ValidationTypeTurnstile:
+			verifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+		case ValidationTypeHCaptcha:
+			verifyURL = "https://api.hcaptcha.com/siteverify"
+		case ValidationTypeReCaptcha:
+			verifyURL = "https://www.google.com/recaptcha/api/siteverify"
+		}
 	}
 
 	form := url.Values{
