@@ -1,0 +1,17 @@
+# Berghain config for the CrowdSec example: the default challenge levels plus
+# the embedded IP reputation service. The API key comes from the
+# CROWDSEC_API_KEY environment variable (see examples/crowdsec/README.md).
+secret: JMal0XJRROOMsMdPqggG2tR56CTkpgN3r47GgUN/WSQ=
+
+reputation:
+  peer_listen: 127.0.0.1:10001
+  local_peer: berghain_feed
+  crowdsec:
+    url: http://crowdsec:8080
+
+default:
+  levels:
+    - duration: 24h
+      type: none
+    - duration: 30m
+      type: pow
