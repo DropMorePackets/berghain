@@ -95,12 +95,14 @@ func (c LevelConfig) AsLevelConfig() *berghain.LevelConfig {
 		lc.Type = berghain.ValidationTypeHCaptcha
 	case "recaptcha":
 		lc.Type = berghain.ValidationTypeReCaptcha
+	case "cap":
+		lc.Type = berghain.ValidationTypeCap
 	default:
 		Fatal("unknown validation type", "validator", c.Type)
 	}
 
 	switch lc.Type {
-	case berghain.ValidationTypeTurnstile, berghain.ValidationTypeHCaptcha, berghain.ValidationTypeReCaptcha:
+	case berghain.ValidationTypeTurnstile, berghain.ValidationTypeHCaptcha, berghain.ValidationTypeReCaptcha, berghain.ValidationTypeCap:
 		if c.Sitekey == "" || c.Secret == "" {
 			Fatal("captcha types require a sitekey and a secret", "validator", c.Type)
 		}

@@ -18,7 +18,7 @@ function scriptEnvironment(onScript){
 }
 
 test("describes every captcha challenge type", () => {
-    assert.deepEqual(Object.keys(captchaProviders), ["3", "4", "5"]);
+    assert.deepEqual(Object.keys(captchaProviders), ["3", "4", "5", "6"]);
 
     for (const provider of Object.values(captchaProviders)){
         assert.match(provider.script, /^https:\/\//);
