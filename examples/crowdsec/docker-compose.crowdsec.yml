@@ -1,0 +1,39 @@
+# CrowdSec IP reputation overlay (issue #82).
+#
+# Runs CrowdSec next to the regular single-container Berghain setup and turns
+# on Berghain's embedded reputation service: it polls the CrowdSec LAPI
+# decision stream as a bouncer and pushes decisions into HAProxy stick-tables
+# over the peers protocol. See examples/crowdsec/README.md for the key setup.
+#
+#   docker compose -f docker-compose.yml -f examples/crowdsec/docker-compose.crowdsec.yml up
+
+services:
+  berghain-haproxy:
+    volumes:
+      - ./examples/haproxy/haproxy-reputation.cfg:/app/haproxy.cfg
+      - ./examples/haproxy/berghain.cfg:/app/examples/haproxy/berghain.cfg
+      - ./examples/crowdsec/config.yaml:/app/config.yaml
+    # -L names this HAProxy's own entry in the peers section.
+    command: sh -c "haproxy -L haproxy_local -f haproxy.cfg & ./berghain -config config.yaml"
+    environment:
+      # Register with: docker compose exec crowdsec cscli bouncers add berghain
+      - CROWDSEC_API_KEY=${CROWDSEC_API_KEY:?run cscli bouncers add berghain and export the key}
+    depends_on:
+      - crowdsec
+
+  # Prefer the standalone daemon instead of embedded mode? Disable the
+  # reputation section in config.yaml and run cmd/feedupdater as its own
+  # service with the same flags-equivalent settings.
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    environment:
+      - COLLECTIONS=crowdsecurity/base-http-scenarios
+    volumes:
+      - crowdsec-db:/var/lib/crowdsec/data
+      - crowdsec-config:/etc/crowdsec
+    restart: unless-stopped
+
+volumes:
+  crowdsec-db:
+  crowdsec-config:
