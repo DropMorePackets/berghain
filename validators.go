@@ -19,6 +19,7 @@ const (
 	ValidationTypeTurnstile
 	ValidationTypeHCaptcha
 	ValidationTypeReCaptcha
+	ValidationTypeCap
 )
 
 type ValidatorResponse struct {
@@ -82,7 +83,7 @@ func (v ValidationType) RunValidator(b *Berghain, req *ValidatorRequest, resp *V
 		return validatorNone(b, req, resp)
 	case ValidationTypePOW:
 		return validatorPOW(b, req, resp)
-	case ValidationTypeTurnstile, ValidationTypeHCaptcha, ValidationTypeReCaptcha:
+	case ValidationTypeTurnstile, ValidationTypeHCaptcha, ValidationTypeReCaptcha, ValidationTypeCap:
 		return validatorCaptcha(b, req, resp)
 	default:
 		return errors.New("unknown validation type")
