@@ -14,6 +14,8 @@ import (
 
 	"github.com/dropmorepackets/haproxy-go/pkg/encoding"
 	"github.com/dropmorepackets/haproxy-go/spop"
+
+	"github.com/DropMorePackets/berghain/internal/reputation"
 )
 
 var (
@@ -58,11 +60,26 @@ func main() {
 
 	ec := make(chan error)
 
+	cfg := loadConfig()
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		ec <- runBerghain(&wg, ctx)
+		ec <- runBerghain(&wg, ctx, cfg)
 	}()
+
+	// Embedded mode: run the IP reputation service (CrowdSec + static feeds
+	// over the peers protocol) in-process when configured, so simple setups
+	// need no separate feed daemon.
+	if cfg.Reputation.Enabled() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := reputation.New(cfg.Reputation).Run(ctx); err != nil {
+				ec <- err
+			}
+		}()
+	}
 
 	select {
 	case <-c:
@@ -81,10 +98,9 @@ func main() {
 	<-c
 }
 
-func runBerghain(wg *sync.WaitGroup, ctx context.Context) error {
+func runBerghain(wg *sync.WaitGroup, ctx context.Context, cfg Config) error {
 	defer wg.Done()
 
-	cfg := loadConfig()
 	if len(cfg.Secret) != 32 {
 		Fatal("provided secret has invalid length", "have", len(cfg.Secret), "need", 32)
 	}

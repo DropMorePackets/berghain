@@ -74,6 +74,18 @@ Customize the maps under [`examples/haproxy/maps/`](examples/haproxy/maps/) and 
 Map keys are lowercase literal substrings without whitespace. User-Agent headers are trivial to spoof, so this policy is
 traffic shaping only; it must not protect authenticated or otherwise sensitive endpoints.
 
+### Optional IP reputation (CrowdSec)
+
+Berghain ships a reputation service that acts as a [CrowdSec](https://www.crowdsec.net/) bouncer and pushes
+decisions (plus static feeds such as Tor exit nodes) into HAProxy stick-tables **live over the peers protocol** —
+no reloads, and Berghain stays stateless. Bans are silent-dropped, captcha decisions raise the minimum challenge
+level, and per-decision durations are honored via timed stick-table entries.
+
+It runs either embedded in the agent (a `reputation:` section in the spop config) or standalone
+(`cmd/feedupdater`) for setups that scale the feed separately; the daemon behaves as a first-class peer in
+meshes with multiple HAProxy instances. See [`examples/crowdsec/`](examples/crowdsec/) and
+[`examples/haproxy/haproxy-reputation.cfg`](examples/haproxy/haproxy-reputation.cfg).
+
 ## Running with Docker
 
 To run the project using Docker, follow these steps:
