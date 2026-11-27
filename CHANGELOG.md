@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/DropMorePackets/berghain/compare/v0.3.0...v0.3.1) (2026-11-27)
+
+
+### Performance Improvements
+
+* **haproxy:** skip SPOE validate when berghain cookie is missing ([b90959f](https://github.com/DropMorePackets/berghain/commit/b90959f5c4c5d29c2a8545c0a8449f4820d545aa))
+
 ## [0.3.0](https://github.com/DropMorePackets/berghain/compare/v0.2.0...v0.3.0) (2026-07-11)
 
 
