@@ -39,7 +39,9 @@ haproxy_pid=$!
 for port in 18080 18081; do
     ready=""
     for _ in $(seq 1 30); do
-        status="$(curl --max-time 1 --silent --output /dev/null --write-out '%{http_code}' "http://localhost:$port/" || true)"
+        # Send a dummy cookie so HAProxy exercises the SPOE validate path;
+        # a 403 (rather than 501) then confirms both HAProxy and Berghain are ready.
+        status="$(curl --max-time 1 --silent --output /dev/null --write-out '%{http_code}' --cookie 'berghain=probe' "http://localhost:$port/" || true)"
         if [[ $status == 403 ]]; then
             ready=1
             break
