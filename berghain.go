@@ -15,8 +15,8 @@ type LevelConfig struct {
 	Duration  time.Duration
 	Type      ValidationType
 
-	// Captcha configuration, required for the turnstile, hcaptcha and
-	// recaptcha validation types.
+	// Captcha configuration, required for the turnstile, hcaptcha,
+	// recaptcha and cap validation types.
 	CaptchaSitekey string
 	CaptchaSecret  string
 	// CaptchaVerifyURL overrides the provider siteverify endpoint,

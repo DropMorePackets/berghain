@@ -80,6 +80,9 @@ func (captchaValidator) isValid(b *Berghain, req *ValidatorRequest, _ *Validator
 			verifyURL = "https://api.hcaptcha.com/siteverify"
 		case ValidationTypeReCaptcha:
 			verifyURL = "https://www.google.com/recaptcha/api/siteverify"
+		case ValidationTypeCap:
+			// not very useful to guess a default here
+			return fmt.Errorf("%w: undefined verify_url", errCaptchaUnavailable)
 		}
 	}
 

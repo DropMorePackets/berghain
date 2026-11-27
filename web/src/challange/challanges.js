@@ -85,6 +85,12 @@ export const captchaProviders = Object.freeze({
         // when the script was loaded async.
         useReady: true,
     }),
+    6: Object.freeze({
+        name: "Cap",
+        script: "https://test.home.lysergic.dev/cap/cap.min.js", // TODO: make this configurable
+        global: "cap",
+        useReady: true,
+    }),
 });
 
 const captchaOnloadCallback = "__berghainCaptchaLoaded";
@@ -118,6 +124,41 @@ function loadProviderScript(provider, environment){
  */
 async function loadCaptchaApi(provider, environment){
     let api;
+
+    if (provider.name === "Cap"){
+        environment.CAP_CUSTOM_WASM_URL = ["/cap/cap_wasm_bg.wasm"]; // TODO: make this configurable
+
+        environment.cap = {
+            ready: (callback) => {
+                if (typeof callback === "function"){
+                    callback();
+                }
+            },
+            render: (container, options) => {
+                const widgetElement = environment.document.createElement("cap-widget");
+                container.appendChild(widgetElement);
+
+                const capInstance = new environment.Cap({
+                    apiEndpoint: `/${options.sitekey}`,
+                }, widgetElement);
+
+                capInstance.addEventListener("solve", (event) => {
+                    if (options && typeof options.callback === "function"){
+                        options.callback(event.detail.token);
+                    }
+                });
+
+                capInstance.addEventListener("error", () => {
+                    if (options && typeof options["error-callback"] === "function"){
+                        options["error-callback"]();
+                    }
+                });
+
+                return capInstance;
+            },
+        };
+    }
+
     try {
         await loadProviderScript(provider, environment);
         api = environment[provider.global];
@@ -188,6 +229,8 @@ export function getChallengeSolver(challengeType){
         case 4:
         case 5:
             return [`Waiting for ${captchaProviders[challengeType].name}...`, challengeCaptcha];
+        case 6:
+            return ["Please solve the challenge...", challengeCaptcha];
         default:
             throw new Error(`Unknown challenge type: ${challengeType}`);
     }
